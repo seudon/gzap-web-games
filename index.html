@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スターマス - Star Math</title>
+    <meta name="description" content="小学一年生向けの楽しい足し算ゲーム">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- ゲームコンテナ -->
+    <div class="game-container">
+
+        <!-- ヘッダー：レベル、スコア、経験値バー -->
+        <header class="game-header">
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-icon">⭐</span>
+                    <span class="stat-label">Level:</span>
+                    <span id="level" class="stat-value">1</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">✨</span>
+                    <span class="stat-label">Score:</span>
+                    <span id="score" class="stat-value">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">🔥</span>
+                    <span class="stat-label">Combo:</span>
+                    <span id="combo" class="stat-value">0</span>
+                </div>
+            </div>
+
+            <!-- 経験値バー -->
+            <div class="exp-bar-container">
+                <div id="expBar" class="exp-bar">
+                    <div class="exp-bar-fill"></div>
+                </div>
+                <span class="exp-text">
+                    <span id="currentExp">0</span> / <span id="maxExp">10</span> EXP
+                </span>
+            </div>
+        </header>
+
+        <!-- メインゲームエリア -->
+        <main class="game-main">
+
+            <!-- 問題表示エリア -->
+            <div class="question-area">
+                <div class="question-display">
+                    <span id="num1" class="number">3</span>
+                    <span id="operator" class="operator">+</span>
+                    <span id="num2" class="number">5</span>
+                    <span id="equals" class="operator">=</span>
+                    <span class="question-mark">?</span>
+                </div>
+            </div>
+
+            <!-- 回答ボタンエリア -->
+            <div class="answer-area">
+                <div id="answerButtons" class="answer-buttons">
+                    <!-- JavaScriptで動的に生成 -->
+                </div>
+            </div>
+
+            <!-- パーティクルコンテナ -->
+            <div id="particleContainer" class="particle-container"></div>
+
+            <!-- レベルアップ演出用 -->
+            <div id="levelUpEffect" class="level-up-effect hidden">
+                <div class="level-up-content">
+                    <h2 class="level-up-title">LEVEL UP!</h2>
+                    <p class="level-up-message">新しい星が輝き始めた！</p>
+                </div>
+            </div>
+
+            <!-- ゲームクリア演出用 -->
+            <div id="gameCompleteEffect" class="game-complete-effect hidden">
+                <div class="complete-content">
+                    <h1 class="complete-title">🎉 CONGRATULATIONS! 🎉</h1>
+                    <p class="complete-message">すべての星座をマスターしました！</p>
+                    <p class="complete-score">最終スコア: <span id="finalScore">0</span></p>
+                    <button id="restartButton" class="restart-button">もう一度挑戦</button>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- フッター（オプション） -->
+        <footer class="game-footer">
+            <p class="game-tip" id="gameTip">正解すると星が増えるよ！</p>
+        </footer>
+
+    </div>
+
+    <!-- デバッグパネル -->
+    <div id="debugPanel" class="debug-panel">
+        <div class="debug-header">
+            <h3>🛠️ デバッグモード</h3>
+            <button id="toggleDebug" class="debug-toggle">表示/非表示</button>
+        </div>
+        <div class="debug-content">
+            <div class="debug-section">
+                <h4>レベル選択（即座に反映）</h4>
+                <div class="level-buttons">
+                    <button class="level-btn" data-level="1">Lv1</button>
+                    <button class="level-btn" data-level="2">Lv2</button>
+                    <button class="level-btn" data-level="3">Lv3</button>
+                    <button class="level-btn" data-level="4">Lv4</button>
+                    <button class="level-btn" data-level="5">Lv5</button>
+                    <button class="level-btn" data-level="6">Lv6</button>
+                    <button class="level-btn" data-level="7">Lv7</button>
+                    <button class="level-btn" data-level="8">Lv8</button>
+                    <button class="level-btn" data-level="9">Lv9</button>
+                    <button class="level-btn" data-level="10">Lv10</button>
+                </div>
+                <div class="level-buttons">
+                    <button class="level-btn" data-level="11">Lv11</button>
+                    <button class="level-btn" data-level="12">Lv12</button>
+                    <button class="level-btn" data-level="13">Lv13</button>
+                    <button class="level-btn" data-level="14">Lv14</button>
+                    <button class="level-btn" data-level="15">Lv15</button>
+                    <button class="level-btn" data-level="16">Lv16</button>
+                    <button class="level-btn" data-level="17">Lv17</button>
+                    <button class="level-btn" data-level="18">Lv18</button>
+                    <button class="level-btn" data-level="19">Lv19</button>
+                    <button class="level-btn" data-level="20">Lv20</button>
+                </div>
+            </div>
+            <div class="debug-section">
+                <h4>ステータス</h4>
+                <p>現在のレベル: <span id="debugLevel">1</span></p>
+                <p>コンボ: <span id="debugCombo">0</span></p>
+                <p>経験値: <span id="debugExp">0</span> / <span id="debugMaxExp">10</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- GSAP CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+    <!-- ゲームスクリプト -->
+    <script src="js/animations.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
