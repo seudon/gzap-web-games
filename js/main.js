@@ -2,6 +2,10 @@
 // スターマス - ゲームロジック
 // ========================================
 
+// 🛠️ 開発モード（デバッグログとデバッグパネルの表示制御）
+// 本番環境では false、開発時は true に変更してください
+const DEBUG_MODE = false;
+
 // ゲーム状態管理
 const gameState = {
     level: 1,           // 現在のレベル
@@ -24,7 +28,7 @@ const gameConfig = {
  * ゲーム初期化
  */
 function initGame() {
-    console.log('🎮 ゲーム初期化中...');
+    if (DEBUG_MODE) console.log('🎮 ゲーム初期化中...');
 
     // 状態をリセット
     gameState.level = 1;
@@ -45,10 +49,16 @@ function initGame() {
         initGame();
     });
 
-    // デバッグパネルの初期化
+    // デバッグパネルの初期化と表示制御
     initDebugPanel();
 
-    console.log('✅ ゲーム開始！');
+    // 本番環境ではデバッグパネルを非表示
+    const debugPanel = document.getElementById('debugPanel');
+    if (debugPanel) {
+        debugPanel.style.display = DEBUG_MODE ? 'block' : 'none';
+    }
+
+    if (DEBUG_MODE) console.log('✅ ゲーム開始！');
 }
 
 /**
@@ -68,7 +78,7 @@ function generateQuestion() {
 
     gameState.currentQuestion = { num1, num2, answer };
 
-    console.log('❓ 新しい問題生成:', num1 + ' + ' + num2 + ' = ?', '(答え: ' + answer + ')');
+    if (DEBUG_MODE) console.log('❓ 新しい問題生成:', num1 + ' + ' + num2 + ' = ?', '(答え: ' + answer + ')');
 
     // 問題を画面に表示
     displayQuestion();
@@ -83,7 +93,7 @@ function generateQuestion() {
     setTimeout(() => {
         animateButtonsEntry();
         // レベルに応じたボタンアニメーション開始
-        console.log('🎬 ボタンアニメーション開始: Lv' + gameState.level);
+        if (DEBUG_MODE) console.log('🎬 ボタンアニメーション開始: Lv' + gameState.level);
         animateButtonsByLevel(gameState.level);
     }, 800);
 }
@@ -186,12 +196,12 @@ function handleAnswer(answer, button) {
  * @param {HTMLElement} button
  */
 function handleCorrectAnswer(button) {
-    console.log('✅ 正解！ コンボ: ' + gameState.combo + ' → ' + (gameState.combo + 1));
+    if (DEBUG_MODE) console.log('✅ 正解！ コンボ: ' + gameState.combo + ' → ' + (gameState.combo + 1));
 
     // Phase 3: 正解したらすぐにボタンの動きを停止
-    console.log('📍 handleCorrectAnswer: stopAllButtonAnimations を呼び出します');
+    if (DEBUG_MODE) console.log('📍 handleCorrectAnswer: stopAllButtonAnimations を呼び出します');
     stopAllButtonAnimations();
-    console.log('📍 handleCorrectAnswer: stopAllButtonAnimations 呼び出し完了');
+    if (DEBUG_MODE) console.log('📍 handleCorrectAnswer: stopAllButtonAnimations 呼び出し完了');
 
     // コンボ増加
     gameState.combo++;
@@ -199,12 +209,12 @@ function handleCorrectAnswer(button) {
     // スコア増加
     const scoreGain = gameConfig.scorePerCorrect * gameState.combo;
     gameState.score += scoreGain;
-    console.log('💰 スコア +' + scoreGain + ' (合計: ' + gameState.score + ')');
+    if (DEBUG_MODE) console.log('💰 スコア +' + scoreGain + ' (合計: ' + gameState.score + ')');
 
     // 経験値増加（Phase 3: コンボボーナス追加）
     const expGain = calculateExpGain(gameState.combo);
     gameState.exp += expGain;
-    console.log('⭐ 経験値 +' + expGain + ' (コンボ' + gameState.combo + 'ボーナス) (' + gameState.exp + '/' + gameState.maxExp + ')');
+    if (DEBUG_MODE) console.log('⭐ 経験値 +' + expGain + ' (コンボ' + gameState.combo + 'ボーナス) (' + gameState.exp + '/' + gameState.maxExp + ')');
 
     // エフェクト再生
     playCorrectEffect(button, gameState.combo);
@@ -251,17 +261,17 @@ function calculateExpGain(combo) {
  * @param {HTMLElement} button
  */
 function handleWrongAnswer(button) {
-    console.log('❌ 不正解... コンボリセット！');
+    if (DEBUG_MODE) console.log('❌ 不正解... コンボリセット！');
 
     // Phase 3: 不正解でもボタンの動きを停止
-    console.log('📍 handleWrongAnswer: stopAllButtonAnimations を呼び出します');
+    if (DEBUG_MODE) console.log('📍 handleWrongAnswer: stopAllButtonAnimations を呼び出します');
     stopAllButtonAnimations();
-    console.log('📍 handleWrongAnswer: stopAllButtonAnimations 呼び出し完了');
+    if (DEBUG_MODE) console.log('📍 handleWrongAnswer: stopAllButtonAnimations 呼び出し完了');
 
     // コンボリセット
     const oldCombo = gameState.combo;
     gameState.combo = 0;
-    console.log('🔄 コンボ: ' + oldCombo + ' → 0');
+    if (DEBUG_MODE) console.log('🔄 コンボ: ' + oldCombo + ' → 0');
 
     // エフェクト再生
     playWrongEffect(button);
@@ -279,7 +289,7 @@ function handleWrongAnswer(button) {
  * レベルアップ処理
  */
 function levelUp() {
-    console.log('🎉 レベルアップ！ Lv' + gameState.level + ' → Lv' + (gameState.level + 1));
+    if (DEBUG_MODE) console.log('🎉 レベルアップ！ Lv' + gameState.level + ' → Lv' + (gameState.level + 1));
 
     // レベル増加
     gameState.level++;
@@ -289,7 +299,7 @@ function levelUp() {
 
     // 次のレベルに必要な経験値を増加（Phase 3: 大幅削減）
     gameState.maxExp = Math.floor(6 + gameState.level * 0.8);
-    console.log('📊 次のレベルアップまで: ' + gameState.maxExp + '経験値');
+    if (DEBUG_MODE) console.log('📊 次のレベルアップまで: ' + gameState.maxExp + '経験値');
 
     // レベルアップエフェクト
     playLevelUpEffect();
@@ -301,7 +311,7 @@ function levelUp() {
     updateTipMessage();
 
     // 🔧 重要: レベルアップ直後にボタンアニメーションを更新
-    console.log('🔄 ボタンアニメーションを新しいレベルに更新: Lv' + gameState.level);
+    if (DEBUG_MODE) console.log('🔄 ボタンアニメーションを新しいレベルに更新: Lv' + gameState.level);
     setTimeout(() => {
         animateButtonsByLevel(gameState.level);
     }, 2000); // レベルアップエフェクト後に更新
@@ -311,7 +321,7 @@ function levelUp() {
  * ゲームクリア処理
  */
 function gameComplete() {
-    console.log('ゲームクリア！');
+    if (DEBUG_MODE) console.log('ゲームクリア！');
 
     // 最終スコアを表示
     document.getElementById('finalScore').textContent = gameState.score;
@@ -324,12 +334,14 @@ function gameComplete() {
  * UI更新
  */
 function updateUI() {
-    console.log('📊 UI更新:', {
-        level: gameState.level,
-        score: gameState.score,
-        combo: gameState.combo,
-        exp: gameState.exp + '/' + gameState.maxExp
-    });
+    if (DEBUG_MODE) {
+        console.log('📊 UI更新:', {
+            level: gameState.level,
+            score: gameState.score,
+            combo: gameState.combo,
+            exp: gameState.exp + '/' + gameState.maxExp
+        });
+    }
 
     // レベル
     animateNumber('level', gameState.level);
@@ -380,7 +392,7 @@ function updateTipMessage() {
  * デバッグパネル初期化
  */
 function initDebugPanel() {
-    console.log('🛠️ デバッグパネル初期化');
+    if (DEBUG_MODE) console.log('🛠️ デバッグパネル初期化');
 
     // 表示/非表示トグル
     const toggleButton = document.getElementById('toggleDebug');
@@ -390,7 +402,7 @@ function initDebugPanel() {
     toggleButton.addEventListener('click', () => {
         isVisible = !isVisible;
         debugContent.classList.toggle('hidden');
-        console.log('デバッグパネル:', isVisible ? '表示' : '非表示');
+        if (DEBUG_MODE) console.log('デバッグパネル:', isVisible ? '表示' : '非表示');
     });
 
     // レベル選択ボタンのイベントリスナー
@@ -398,7 +410,7 @@ function initDebugPanel() {
     levelButtons.forEach(button => {
         button.addEventListener('click', () => {
             const targetLevel = parseInt(button.dataset.level);
-            console.log('🔧 デバッグ: レベルを ' + targetLevel + ' に変更');
+            if (DEBUG_MODE) console.log('🔧 デバッグ: レベルを ' + targetLevel + ' に変更');
 
             // レベルを即座に変更
             gameState.level = targetLevel;
@@ -412,7 +424,7 @@ function initDebugPanel() {
             button.classList.add('active');
 
             // ボタンアニメーションを即座に更新
-            console.log('🎬 ボタンアニメーション即座更新: Lv' + targetLevel);
+            if (DEBUG_MODE) console.log('🎬 ボタンアニメーション即座更新: Lv' + targetLevel);
             animateButtonsByLevel(targetLevel);
         });
     });
@@ -446,6 +458,6 @@ function updateDebugPanel() {
  * DOMロード完了時にゲーム初期化
  */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 DOMロード完了');
+    if (DEBUG_MODE) console.log('🚀 DOMロード完了');
     initGame();
 });

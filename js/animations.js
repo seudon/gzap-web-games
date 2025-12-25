@@ -2,6 +2,9 @@
 // GSAPアニメーション定義
 // ========================================
 
+// 注意: このファイルは main.js の DEBUG_MODE 定数を使用します
+// main.js が先に読み込まれる必要があります
+
 // 🔧 現在のアニメーションレベルを管理（グローバル変数）
 let currentAnimationLevel = null;
 
@@ -9,26 +12,28 @@ let currentAnimationLevel = null;
  * 全てのボタンアニメーションを停止（Phase 3新規）
  */
 function stopAllButtonAnimations() {
-    console.log('🛑 stopAllButtonAnimations 呼び出し');
-    console.log('  現在のアニメーションレベル:', currentAnimationLevel);
+    if (DEBUG_MODE) console.log('🛑 stopAllButtonAnimations 呼び出し');
+    if (DEBUG_MODE) console.log('  現在のアニメーションレベル:', currentAnimationLevel);
 
     const buttons = document.querySelectorAll('.answer-button');
-    console.log('  対象ボタン数:', buttons.length);
+    if (DEBUG_MODE) console.log('  対象ボタン数:', buttons.length);
 
     // 🔧 重要: currentAnimationLevelをnullにして再帰的アニメーションを停止
     currentAnimationLevel = null;
-    console.log('  currentAnimationLevel を null に設定');
+    if (DEBUG_MODE) console.log('  currentAnimationLevel を null に設定');
 
     // 各ボタンのアニメーション数を確認
-    buttons.forEach((button, index) => {
-        const tweensCount = gsap.getTweensOf(button).length;
-        console.log('  ボタン' + (index + 1) + ' のアニメーション数:', tweensCount);
-    });
+    if (DEBUG_MODE) {
+        buttons.forEach((button, index) => {
+            const tweensCount = gsap.getTweensOf(button).length;
+            console.log('  ボタン' + (index + 1) + ' のアニメーション数:', tweensCount);
+        });
+    }
 
     // 全てのアニメーションを停止
     buttons.forEach((button, index) => {
         gsap.killTweensOf(button);
-        console.log('  ボタン' + (index + 1) + ' のアニメーションを停止');
+        if (DEBUG_MODE) console.log('  ボタン' + (index + 1) + ' のアニメーションを停止');
     });
 
     // ボタンを初期位置に戻す
@@ -39,15 +44,17 @@ function stopAllButtonAnimations() {
         scale: 1,
         opacity: 1
     });
-    console.log('  全ボタンを初期位置にリセット');
+    if (DEBUG_MODE) console.log('  全ボタンを初期位置にリセット');
 
     // 停止後の確認
-    buttons.forEach((button, index) => {
-        const tweensCountAfter = gsap.getTweensOf(button).length;
-        console.log('  ボタン' + (index + 1) + ' 停止後のアニメーション数:', tweensCountAfter);
-    });
+    if (DEBUG_MODE) {
+        buttons.forEach((button, index) => {
+            const tweensCountAfter = gsap.getTweensOf(button).length;
+            console.log('  ボタン' + (index + 1) + ' 停止後のアニメーション数:', tweensCountAfter);
+        });
+    }
 
-    console.log('✅ stopAllButtonAnimations 完了');
+    if (DEBUG_MODE) console.log('✅ stopAllButtonAnimations 完了');
 }
 
 /**
@@ -133,32 +140,34 @@ function animateButtonsEntry() {
 function animateButtonsByLevel(level) {
     const buttons = document.querySelectorAll('.answer-button');
 
-    console.log('🔄 animateButtonsByLevel 開始: Lv' + level);
-    console.log('  対象ボタン数:', buttons.length);
+    if (DEBUG_MODE) console.log('🔄 animateButtonsByLevel 開始: Lv' + level);
+    if (DEBUG_MODE) console.log('  対象ボタン数:', buttons.length);
 
     // 🔧 重要: 現在のレベルを設定（これでアニメーションを制御）
     currentAnimationLevel = level;
-    console.log('  現在のアニメーションレベルを設定:', currentAnimationLevel);
+    if (DEBUG_MODE) console.log('  現在のアニメーションレベルを設定:', currentAnimationLevel);
 
     // 🔧 STEP 1: 全てのボタンに対するアニメーションを強制停止
-    console.log('  STEP 1: 既存アニメーションを停止中...');
+    if (DEBUG_MODE) console.log('  STEP 1: 既存アニメーションを停止中...');
 
     // 📌 停止前のアニメーション数を記録
-    buttons.forEach((button, index) => {
-        const tweensCount = gsap.getTweensOf(button).length;
-        console.log('    ボタン' + (index + 1) + ' のアニメーション数（停止前）:', tweensCount);
-    });
+    if (DEBUG_MODE) {
+        buttons.forEach((button, index) => {
+            const tweensCount = gsap.getTweensOf(button).length;
+            console.log('    ボタン' + (index + 1) + ' のアニメーション数（停止前）:', tweensCount);
+        });
+    }
 
     // 🚨 重要: 全てのプロパティを個別に指定してkill
     buttons.forEach((button, index) => {
         // 全プロパティを明示的に指定してkill（これが最も確実）
         gsap.killTweensOf(button, 'x,y,rotation,scale,opacity');
-        console.log('    ボタン' + (index + 1) + ' の全プロパティtweenをkill');
+        if (DEBUG_MODE) console.log('    ボタン' + (index + 1) + ' の全プロパティtweenをkill');
     });
 
     // グローバルタイムラインから全てのtimelineとtweenを検索して停止
     const allChildren = gsap.globalTimeline.getChildren(true, true, true);
-    console.log('  グローバルタイムライン内の全要素数:', allChildren.length);
+    if (DEBUG_MODE) console.log('  グローバルタイムライン内の全要素数:', allChildren.length);
 
     let killedTimelinesCount = 0;
     let killedTweensCount = 0;
@@ -182,7 +191,7 @@ function animateButtonsByLevel(level) {
             if (hasButton) {
                 child.kill();
                 killedTimelinesCount++;
-                console.log('    Timeline停止:', child);
+                if (DEBUG_MODE) console.log('    Timeline停止:', child);
             }
         }
         // Tweenの場合
@@ -195,14 +204,14 @@ function animateButtonsByLevel(level) {
         }
     });
 
-    console.log('  停止したTimeline数:', killedTimelinesCount);
-    console.log('  停止したTween数:', killedTweensCount);
+    if (DEBUG_MODE) console.log('  停止したTimeline数:', killedTimelinesCount);
+    if (DEBUG_MODE) console.log('  停止したTween数:', killedTweensCount);
 
     // さらに念のため、もう一度killTweensOf
     gsap.killTweensOf(buttons);
 
     // 🔧 STEP 2: 初期状態に強制リセット
-    console.log('  STEP 2: ボタンを初期状態にリセット中...');
+    if (DEBUG_MODE) console.log('  STEP 2: ボタンを初期状態にリセット中...');
     buttons.forEach((button, index) => {
         gsap.set(button, {
             x: 0,
@@ -211,27 +220,29 @@ function animateButtonsByLevel(level) {
             scale: 1,
             opacity: 1
         });
-        console.log('    ボタン' + (index + 1) + ' リセット完了');
+        if (DEBUG_MODE) console.log('    ボタン' + (index + 1) + ' リセット完了');
     });
 
     // clearPropsで全てクリア
     gsap.set(buttons, { clearProps: 'all' });
 
     // 📌 停止後のアニメーション数を確認
-    buttons.forEach((button, index) => {
-        const tweensCount = gsap.getTweensOf(button).length;
-        console.log('    ボタン' + (index + 1) + ' のアニメーション数（停止後）:', tweensCount);
-        if (tweensCount > 0) {
-            console.warn('    ⚠️ ボタン' + (index + 1) + ' にまだアニメーションが残っています！');
-        }
-    });
+    if (DEBUG_MODE) {
+        buttons.forEach((button, index) => {
+            const tweensCount = gsap.getTweensOf(button).length;
+            console.log('    ボタン' + (index + 1) + ' のアニメーション数（停止後）:', tweensCount);
+            if (tweensCount > 0) {
+                console.warn('    ⚠️ ボタン' + (index + 1) + ' にまだアニメーションが残っています！');
+            }
+        });
+    }
 
-    console.log('  ✅ 全アニメーション停止・リセット完了');
+    if (DEBUG_MODE) console.log('  ✅ 全アニメーション停止・リセット完了');
 
     if (level === 1) {
         // Lv1: 完全に静止（動かない）
         // 何もしない
-        console.log('Level 1: ボタンは静止');
+        if (DEBUG_MODE) console.log('Level 1: ボタンは静止');
 
     } else if (level === 2) {
         // Lv2: ボタンごとに異なる方向に微妙な脈動 + 小さな左右移動
@@ -465,7 +476,7 @@ function animateButtonsByLevel(level) {
             const targetLevel = level;
             // レベルに応じてボタンサイズを段階的に縮小
             const buttonScale = 1.0 - (level - 10) * 0.03; // Lv11: 0.97, Lv12: 0.94, ..., Lv15: 0.85
-            console.log('  Lv' + level + ' ボタンサイズ: ' + buttonScale.toFixed(2));
+            if (DEBUG_MODE) console.log('  Lv' + level + ' ボタンサイズ: ' + buttonScale.toFixed(2));
 
             const complexRandomMove = () => {
                 if (currentAnimationLevel !== targetLevel) return;
@@ -494,7 +505,7 @@ function animateButtonsByLevel(level) {
             const targetLevel = level;
             // レベルに応じてボタンサイズをさらに縮小
             const buttonScale = 0.85 - (level - 15) * 0.03; // Lv16: 0.82, Lv17: 0.79, ..., Lv20: 0.70
-            console.log('  Lv' + level + ' ボタンサイズ: ' + buttonScale.toFixed(2));
+            if (DEBUG_MODE) console.log('  Lv' + level + ' ボタンサイズ: ' + buttonScale.toFixed(2));
 
             const hyperComplexMove = () => {
                 if (currentAnimationLevel !== targetLevel) return;
@@ -556,7 +567,7 @@ function animateButtonsByLevel(level) {
         });
     }
 
-    console.log('  🎬 レベル ' + level + ' のアニメーション開始完了');
+    if (DEBUG_MODE) console.log('  🎬 レベル ' + level + ' のアニメーション開始完了');
 }
 
 /**
