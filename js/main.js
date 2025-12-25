@@ -294,21 +294,38 @@ function levelUp() {
     // レベル増加
     gameState.level++;
 
-    // 経験値リセット
-    gameState.exp = 0;
-
-    // 次のレベルに必要な経験値を増加（Phase 3: 大幅削減）
+    // 次のレベルに必要な経験値を計算（Phase 3: 大幅削減）
     gameState.maxExp = Math.floor(6 + gameState.level * 0.8);
     if (DEBUG_MODE) console.log('📊 次のレベルアップまで: ' + gameState.maxExp + '経験値');
+
+    // 🎯 経験値バーを100%まで満たすアニメーション
+    animateExpBar(100);
 
     // レベルアップエフェクト
     playLevelUpEffect();
 
-    // UI更新
-    updateUI();
+    // UI更新（レベル、スコア、コンボのみ）
+    animateNumber('level', gameState.level);
+    animateNumber('score', gameState.score);
+    animateNumber('combo', gameState.combo);
+
+    // 経験値の最大値テキストを更新
+    document.getElementById('maxExp').textContent = gameState.maxExp;
 
     // ヒントメッセージ更新
     updateTipMessage();
+
+    // デバッグパネルの更新
+    updateDebugPanel();
+
+    // 🎯 少し待ってから経験値を0に瞬時リセット（溢れた→リセットの流れ）
+    setTimeout(() => {
+        gameState.exp = 0;
+        document.getElementById('currentExp').textContent = 0;
+        // 経験値バーを瞬時に0%にリセット（アニメーションなし）
+        const bar = document.querySelector('.exp-bar-fill');
+        gsap.set(bar, { width: '0%' });
+    }, 800); // レベルアップエフェクトの表示時間に合わせる
 
     // 🔧 重要: レベルアップ直後にボタンアニメーションを更新
     if (DEBUG_MODE) console.log('🔄 ボタンアニメーションを新しいレベルに更新: Lv' + gameState.level);
