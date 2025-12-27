@@ -4,7 +4,7 @@
 
 // 🛠️ 開発モード（デバッグログとデバッグパネルの表示制御）
 // 本番環境では false、開発時は true に変更してください
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 // ゲーム状態管理
 const gameState = {
