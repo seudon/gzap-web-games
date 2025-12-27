@@ -45,7 +45,15 @@ const soundPaths = {
         lifeLost: 'sounds/effect/life-lost-001.mp3',
         gameover: 'sounds/effect/gameover-001.mp3',
         warning: 'sounds/effect/warning-001.mp3',
-        clear: 'sounds/effect/clear-001.mp3'
+        clear: 'sounds/effect/clear-001.mp3',
+        // 必殺技サウンド
+        specialTimeStop: 'sounds/effect/special_timestop.mp3',
+        specialSlowMotion: 'sounds/effect/special_slowmotion.mp3',
+        specialHint: 'sounds/effect/special_hint.mp3'
+    },
+    // スローモーション中のBGM
+    specialBGM: {
+        slowMotion: 'sounds/effect/bgm_slowmotion.mp3'
     }
 };
 
@@ -58,7 +66,8 @@ for (let i = 1; i <= 8; i++) {
 // Audio オブジェクトのキャッシュ
 const audioCache = {
     bgm: {},
-    effect: {}
+    effect: {},
+    specialBGM: {}
 };
 
 /**
@@ -93,6 +102,9 @@ function preloadBGM() {
         createAudio(path, soundConfig.bgmVolume, true)
     );
 
+    // スローモーション中のBGM
+    audioCache.specialBGM.slowMotion = createAudio(soundPaths.specialBGM.slowMotion, soundConfig.bgmVolume, true);
+
     if (DEBUG_MODE) console.log('📀 BGMプリロード完了');
 }
 
@@ -122,6 +134,11 @@ function preloadEffects() {
     audioCache.effect.gameover = createAudio(soundPaths.effect.gameover, soundConfig.effectVolume, false);
     audioCache.effect.warning = createAudio(soundPaths.effect.warning, soundConfig.effectVolume, false);
     audioCache.effect.clear = createAudio(soundPaths.effect.clear, soundConfig.effectVolume, false);
+
+    // 必殺技サウンド
+    audioCache.effect.specialTimeStop = createAudio(soundPaths.effect.specialTimeStop, soundConfig.effectVolume, false);
+    audioCache.effect.specialSlowMotion = createAudio(soundPaths.effect.specialSlowMotion, soundConfig.effectVolume, false);
+    audioCache.effect.specialHint = createAudio(soundPaths.effect.specialHint, soundConfig.effectVolume, false);
 
     if (DEBUG_MODE) console.log('🔔 効果音プリロード完了');
 }
@@ -464,6 +481,58 @@ function playWarningSound() {
 function playClearSound() {
     if (!soundConfig.enabled) return;
     playEffect(audioCache.effect.clear);
+}
+
+/**
+ * 必殺技：時間停止サウンドを再生
+ */
+function playTimeStopSound() {
+    if (!soundConfig.enabled) return;
+    playEffect(audioCache.effect.specialTimeStop);
+}
+
+/**
+ * 必殺技：スローモーションサウンドを再生
+ */
+function playSlowMotionSound() {
+    if (!soundConfig.enabled) return;
+    playEffect(audioCache.effect.specialSlowMotion);
+}
+
+/**
+ * 必殺技：ヒントサウンドを再生
+ */
+function playHintSound() {
+    if (!soundConfig.enabled) return;
+    playEffect(audioCache.effect.specialHint);
+}
+
+/**
+ * スローモーション用BGMを再生
+ */
+function playSlowMotionBGM() {
+    if (!soundConfig.enabled) return;
+
+    const bgm = audioCache.specialBGM.slowMotion;
+    if (bgm) {
+        bgm.currentTime = 0;
+        bgm.play().catch(err => {
+            console.warn('スローモーションBGM再生エラー:', err);
+        });
+        if (DEBUG_MODE) console.log('🎵 スローモーションBGM再生');
+    }
+}
+
+/**
+ * スローモーション用BGMを停止
+ */
+function stopSlowMotionBGM() {
+    const bgm = audioCache.specialBGM.slowMotion;
+    if (bgm) {
+        bgm.pause();
+        bgm.currentTime = 0;
+        if (DEBUG_MODE) console.log('🎵 スローモーションBGM停止');
+    }
 }
 
 /**

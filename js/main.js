@@ -956,8 +956,9 @@ function activateTimeStop() {
         // 必殺技名を画面いっぱいに表示（1秒で消える）
         showSpecialMoveName('ザ・ワールド！！', '#00d4ff');
 
-        // タイマーを一時停止
+        // タイマーとボタンアニメーションを一時停止
         pauseTimer();
+        pauseButtonAnimations();
 
         // 10秒後に解除
         specialMoveState.cooldownTimers.timeStop = setTimeout(() => {
@@ -977,8 +978,9 @@ function deactivateTimeStop() {
         button.classList.remove('active');
     }
 
-    // タイマーを再開
+    // タイマーとボタンアニメーションを再開
     resumeTimer();
+    resumeButtonAnimations();
 
     if (DEBUG_MODE) console.log('⏸️ 時間停止 解除');
     updateSpecialButtons();

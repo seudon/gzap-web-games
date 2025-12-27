@@ -8,6 +8,33 @@
 // 🔧 現在のアニメーションレベルを管理（グローバル変数）
 let currentAnimationLevel = null;
 
+// 🔧 時間停止フラグ（必殺技用）
+let isTimeStopActive = false;
+
+/**
+ * 時間停止：ボタンアニメーションを一時停止
+ */
+function pauseButtonAnimations() {
+    isTimeStopActive = true;
+    const buttons = document.querySelectorAll('.answer-button');
+    buttons.forEach(button => {
+        gsap.killTweensOf(button);
+    });
+    if (DEBUG_MODE) console.log('⏸️ ボタンアニメーション一時停止');
+}
+
+/**
+ * 時間停止解除：ボタンアニメーションを再開
+ */
+function resumeButtonAnimations() {
+    isTimeStopActive = false;
+    // 現在のレベルのアニメーションを再開
+    if (currentAnimationLevel !== null) {
+        animateButtonsByLevel(currentAnimationLevel);
+    }
+    if (DEBUG_MODE) console.log('▶️ ボタンアニメーション再開');
+}
+
 /**
  * 全てのボタンアニメーションを停止（Phase 3新規）
  */
@@ -146,6 +173,12 @@ function animateButtonsByLevel(level) {
     // 🔧 重要: 現在のレベルを設定（これでアニメーションを制御）
     currentAnimationLevel = level;
     if (DEBUG_MODE) console.log('  現在のアニメーションレベルを設定:', currentAnimationLevel);
+
+    // 🔧 時間停止中はアニメーションを開始しない
+    if (isTimeStopActive) {
+        if (DEBUG_MODE) console.log('⏸️ 時間停止中のため、アニメーション開始をスキップ');
+        return;
+    }
 
     // 🔧 STEP 1: 全てのボタンに対するアニメーションを強制停止
     if (DEBUG_MODE) console.log('  STEP 1: 既存アニメーションを停止中...');
