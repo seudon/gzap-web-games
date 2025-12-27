@@ -576,25 +576,26 @@ function initSettingsPanel() {
 }
 
 /**
- * 公式を表示する（ドラム10回以上で発動）
+ * 知識を表示する（ドラム10回以上で発動）
  */
 function displayFormula() {
-    // 公式リストが存在しない場合は何もしない
-    if (typeof formulas === 'undefined' || formulas.length === 0) {
-        if (DEBUG_MODE) console.warn('⚠️ 公式リストが見つかりません');
+    // 知識リストが存在しない場合は何もしない
+    if (typeof knowledgeItems === 'undefined' || knowledgeItems.length === 0) {
+        if (DEBUG_MODE) console.warn('⚠️ 知識データが見つかりません');
         return;
     }
 
-    // 現在の公式を取得
-    const formula = formulas[gameState.currentFormulaIndex];
+    // 現在の知識を取得
+    const item = knowledgeItems[gameState.currentFormulaIndex];
 
-    // メッセージとスコア表示を公式に置き換え
+    // メッセージとスコア表示を知識に置き換え
     const messageElement = document.querySelector('.complete-message');
     const scoreElement = document.querySelector('.complete-score');
 
     if (messageElement && scoreElement) {
-        messageElement.textContent = formula.title;
-        scoreElement.innerHTML = formula.formula;
+        // カテゴリー + タイトルを表示
+        messageElement.innerHTML = `<span style="font-size: 0.7em; color: #ffd93d;">[${item.category}]</span><br>${item.title}`;
+        scoreElement.innerHTML = item.content;
 
         // アニメーション効果
         gsap.fromTo(messageElement,
@@ -606,11 +607,11 @@ function displayFormula() {
             { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(1.7)', delay: 0.1 }
         );
 
-        if (DEBUG_MODE) console.log(`📚 公式表示 [${gameState.currentFormulaIndex + 1}/${formulas.length}]:`, formula.title);
+        if (DEBUG_MODE) console.log(`📚 知識表示 [${gameState.currentFormulaIndex + 1}/${knowledgeItems.length}] [${item.category}]:`, item.title);
     }
 
-    // 次の公式へ進む（最後まで行ったら最初に戻る）
-    gameState.currentFormulaIndex = (gameState.currentFormulaIndex + 1) % formulas.length;
+    // 次の知識へ進む（最後まで行ったら最初に戻る）
+    gameState.currentFormulaIndex = (gameState.currentFormulaIndex + 1) % knowledgeItems.length;
 }
 
 /**
