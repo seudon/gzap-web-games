@@ -525,6 +525,7 @@ body {
 @media (max-width: 768px) {
     .drum-buttons {
         grid-template-columns: repeat(2, auto);
+        justify-content: center;
         max-width: 300px;
         gap: 12px;
     }
