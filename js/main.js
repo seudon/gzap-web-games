@@ -1050,8 +1050,15 @@ function restoreBGM() {
     // 他の必殺技が発動中でない場合のみBGMを再開
     if (!specialMoveState.active.timeStop && !specialMoveState.active.slowMotion) {
         // レベルに応じたBGMを再生
-        if (gameState.level >= 11) {
-            // Lv11以上の場合、BGMが再生中かチェック
+        if (gameState.level <= 10) {
+            // Lv1-10の場合、opening BGMを再生
+            const openingBGM = audioCache.bgm.opening;
+            if (openingBGM && openingBGM.paused) {
+                playBGM('opening');
+                if (DEBUG_MODE) console.log('🎵 BGM再開 (opening)');
+            }
+        } else if (gameState.level <= 20) {
+            // Lv11-20の場合、Lv11-20 BGMを再生
             const lv11_20BGMs = audioCache.bgm.lv11_20;
             const isAnyBGMPlaying = lv11_20BGMs.some(bgm => !bgm.paused);
 
@@ -1060,7 +1067,6 @@ function restoreBGM() {
                 if (DEBUG_MODE) console.log('🎵 BGM再開 (Lv11-20)');
             }
         }
-        // Lv1-10ではBGMなし
     }
 }
 
