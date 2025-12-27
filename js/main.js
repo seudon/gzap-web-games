@@ -137,6 +137,13 @@ function initGame() {
  * 問題を生成
  */
 function generateQuestion() {
+    // 🔧 次の問題に移る際、ヒントが発動中なら強制リセット
+    // （ユーザーが2秒以内に回答した場合の対策）
+    if (specialMoveState.active.hint) {
+        if (DEBUG_MODE) console.log('🔄 次問題生成時: ヒントを強制リセット');
+        resetSpecialMove('hint');
+    }
+
     // レベルに応じた数値範囲を決定
     let maxNumber = 10;
     if (gameState.level >= 11) {
@@ -945,19 +952,24 @@ function activateSpecialMove(moveType, cost, activateFunc) {
  * @param {string} moveType - 必殺技タイプ ('timeStop', 'slowMotion', 'hint')
  */
 function resetSpecialMove(moveType) {
-    if (DEBUG_MODE) console.log('🔄 必殺技リセット:', moveType);
+    if (DEBUG_MODE) console.log('🔄 必殺技リセット開始:', moveType);
+    if (DEBUG_MODE) console.log('  - 現在のactive状態:', specialMoveState.active[moveType]);
+    if (DEBUG_MODE) console.log('  - 現在のゲージ:', specialMoveState.gauge);
 
     // 1. 発動状態をfalseに
     specialMoveState.active[moveType] = false;
+    if (DEBUG_MODE) console.log('  - active状態をfalseに設定');
 
     // 2. ボタンのactiveクラスを削除
     const button = document.querySelector(`[data-move="${moveType}"]`);
     if (button) {
         button.classList.remove('active');
+        if (DEBUG_MODE) console.log('  - activeクラス削除完了');
     }
 
     // 3. ボタンの有効/無効を更新
     updateSpecialButtons();
+    if (DEBUG_MODE) console.log('  - updateSpecialButtons()実行完了');
 
     // 4. 必殺技固有のリセット処理
     switch (moveType) {
@@ -983,6 +995,13 @@ function resetSpecialMove(moveType) {
     }
 
     if (DEBUG_MODE) console.log('✅ 必殺技リセット完了:', moveType);
+    if (DEBUG_MODE) console.log('  - リセット後のactive状態:', specialMoveState.active[moveType]);
+
+    // リセット後のボタン状態を確認
+    if (DEBUG_MODE && button) {
+        console.log('  - リセット後のボタンdisabled:', button.disabled);
+        console.log('  - リセット後のボタンactiveクラス:', button.classList.contains('active'));
+    }
 }
 
 /**
@@ -1155,10 +1174,12 @@ function activateHint() {
             }
         }
 
-        // ヒントは即座に終了（エフェクト終了後にリセット）
+        // ヒントは即座にリセット（エフェクトは続くが、次のヒントを使えるように）
+        // エフェクトとactive状態は独立して管理
         setTimeout(() => {
             resetSpecialMove('hint');
-        }, 2000);  // グローエフェクトが完全に終わるまで待つ
+            if (DEBUG_MODE) console.log('💡 ヒントリセット完了');
+        }, 100);  // エフェクト開始直後にリセット
     });
 }
 
