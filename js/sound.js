@@ -22,7 +22,10 @@ const soundPaths = {
             'sounds/bgm/Lv11-Lv20_002.mp3',
             'sounds/bgm/Lv11-Lv20_003.mp3'
         ],
-        ending: 'sounds/bgm/ending.mp3'
+        ending: [
+            'sounds/bgm/ending_001.mp3',
+            'sounds/bgm/ending_002.mp3'
+        ]
     },
     // 効果音
     effect: {
@@ -85,8 +88,10 @@ function preloadBGM() {
         createAudio(path, soundConfig.bgmVolume, true)
     );
 
-    // ending BGM
-    audioCache.bgm.ending = createAudio(soundPaths.bgm.ending, soundConfig.bgmVolume, true);
+    // ending BGM (複数パターン)
+    audioCache.bgm.ending = soundPaths.bgm.ending.map(path =>
+        createAudio(path, soundConfig.bgmVolume, true)
+    );
 
     if (DEBUG_MODE) console.log('📀 BGMプリロード完了');
 }
@@ -269,11 +274,11 @@ function stopAllBGM() {
         bgm.currentTime = 0;
     });
 
-    // ending BGM
-    if (audioCache.bgm.ending) {
-        audioCache.bgm.ending.pause();
-        audioCache.bgm.ending.currentTime = 0;
-    }
+    // ending BGM (複数パターン)
+    audioCache.bgm.ending.forEach(bgm => {
+        bgm.pause();
+        bgm.currentTime = 0;
+    });
 
     soundConfig.currentBGM = null;
 }
@@ -292,11 +297,33 @@ function onLevelUpBGM(newLevel) {
 }
 
 /**
+ * エンディングBGMをランダムに選択して再生
+ */
+function playRandomEndingBGM() {
+    if (!soundConfig.enabled) return;
+
+    const bgmList = audioCache.bgm.ending;
+    const randomIndex = Math.floor(Math.random() * bgmList.length);
+    const bgm = bgmList[randomIndex];
+
+    // 既存のBGMをフェードアウト
+    if (soundConfig.currentBGM && soundConfig.currentBGM !== bgm) {
+        fadeOutBGM(soundConfig.currentBGM);
+    }
+
+    // 新しいBGMをフェードイン
+    fadeInBGM(bgm);
+    soundConfig.currentBGM = bgm;
+
+    if (DEBUG_MODE) console.log('🎵 エンディングBGM再生:', randomIndex + 1);
+}
+
+/**
  * ゲームクリア時のBGM切り替え
  */
 function onGameClearBGM() {
     if (!soundConfig.enabled) return;
-    playBGM('ending');
+    playRandomEndingBGM();
 }
 
 /**
@@ -463,7 +490,7 @@ function setBGMVolume(volume) {
     // 全てのBGMの音量を更新
     if (audioCache.bgm.opening) audioCache.bgm.opening.volume = soundConfig.bgmVolume;
     audioCache.bgm.lv11_20.forEach(bgm => bgm.volume = soundConfig.bgmVolume);
-    if (audioCache.bgm.ending) audioCache.bgm.ending.volume = soundConfig.bgmVolume;
+    audioCache.bgm.ending.forEach(bgm => bgm.volume = soundConfig.bgmVolume);
 
     if (DEBUG_MODE) console.log('🎵 BGM音量:', soundConfig.bgmVolume);
 }
