@@ -137,12 +137,14 @@ function initGame() {
  * 問題を生成
  */
 function generateQuestion() {
-    // 🔧 次の問題に移る際、ヒントが発動中なら強制リセット
-    // （ユーザーが2秒以内に回答した場合の対策）
-    if (specialMoveState.active.hint) {
-        if (DEBUG_MODE) console.log('🔄 次問題生成時: ヒントを強制リセット');
-        resetSpecialMove('hint');
-    }
+    // 🔧 次の問題に移る際、すべての発動中の必殺技を強制リセット
+    // （正解時に必殺技が発動中の場合の対策）
+    ['hint', 'timeStop', 'slowMotion'].forEach(moveType => {
+        if (specialMoveState.active[moveType]) {
+            if (DEBUG_MODE) console.log(`🔄 次問題生成時: ${moveType}を強制リセット`);
+            resetSpecialMove(moveType);
+        }
+    });
 
     // 🔧 ボタンアニメーションを停止し、位置をリセット
     stopAllButtonAnimations();
