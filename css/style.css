@@ -107,6 +107,65 @@ body {
 }
 
 /* ========================================
+   タイマーバー（時間制限モード）
+   ======================================== */
+.timer-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.timer-bar-wrapper {
+    flex: 1;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    overflow: hidden;
+    position: relative;
+}
+
+.timer-bar {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #6bcf7f, #4ade80);
+    box-shadow: 0 0 15px rgba(107, 207, 127, 0.8);
+    transition: width 0.05s linear, background 0.3s ease;
+}
+
+/* 残り時間50%以下：黄色 */
+.timer-bar.timer-low {
+    background: linear-gradient(90deg, #ffd93d, #f39c12);
+    box-shadow: 0 0 15px rgba(255, 217, 61, 0.8);
+}
+
+/* 残り時間20%以下：赤色 */
+.timer-bar.timer-critical {
+    background: linear-gradient(90deg, #ff6b6b, #e74c3c);
+    box-shadow: 0 0 15px rgba(255, 107, 107, 0.8);
+    animation: timerPulse 0.5s ease-in-out infinite;
+}
+
+@keyframes timerPulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.timer-text {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #6bcf7f;
+    min-width: 60px;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+}
+
+/* ========================================
    メインゲームエリア
    ======================================== */
 .game-main {

@@ -19,7 +19,8 @@ const gameState = {
     settingsPanelInitialized: false,  // 設定パネル初期化済みフラグ
     drumButtonsInitialized: false,  // ドラムボタン初期化済みフラグ
     drumClickCount: 0,   // ドラムボタンクリック回数
-    currentFormulaIndex: 0  // 現在表示中の公式インデックス
+    currentFormulaIndex: 0,  // 現在表示中の公式インデックス
+    timeLimitEnabled: false  // 時間制限モードON/OFF
 };
 
 // ゲーム設定
@@ -27,6 +28,17 @@ const gameConfig = {
     maxLevel: 20,       // 最大レベル
     expPerCorrect: 1,   // 正解時の経験値
     scorePerCorrect: 10 // 正解時のスコア
+};
+
+// タイマー状態管理（必殺技の時間停止機能に対応）
+const timerState = {
+    isRunning: false,   // タイマーが動作中か
+    isPaused: false,    // 一時停止中か（必殺技用）
+    currentTime: 0,     // 残り時間（ミリ秒）
+    maxTime: 10000,     // 制限時間（ミリ秒）
+    startTimestamp: 0,  // 開始時刻
+    pausedTime: 0,      // 一時停止時の残り時間
+    animationId: null   // requestAnimationFrameのID
 };
 
 /**
@@ -121,6 +133,9 @@ function generateQuestion() {
         // レベルに応じたボタンアニメーション開始
         if (DEBUG_MODE) console.log('🎬 ボタンアニメーション開始: Lv' + gameState.level);
         animateButtonsByLevel(gameState.level);
+
+        // タイマー開始（時間制限モード有効時）
+        startTimer();
     }, 800);
 }
 
@@ -205,6 +220,9 @@ function handleAnswer(answer, button) {
     // 回答中は処理しない（連打防止）
     if (gameState.isAnswering) return;
     gameState.isAnswering = true;
+
+    // タイマー停止
+    stopTimer();
 
     // ボタンクリック音を再生
     playButtonSound();
@@ -537,6 +555,160 @@ function updateDebugPanel() {
     });
 }
 
+// ========================================
+// タイマー管理システム（必殺技の時間停止に対応）
+// ========================================
+
+/**
+ * タイマーを開始
+ */
+function startTimer() {
+    if (!gameState.timeLimitEnabled) return;
+
+    // レベルに応じた制限時間を設定（Lv1-10: 10秒, Lv11-20: 8秒）
+    timerState.maxTime = gameState.level <= 10 ? 10000 : 8000;
+    timerState.currentTime = timerState.maxTime;
+    timerState.startTimestamp = performance.now();
+    timerState.isRunning = true;
+    timerState.isPaused = false;
+
+    if (DEBUG_MODE) console.log('⏱️ タイマー開始:', timerState.maxTime / 1000 + '秒');
+
+    updateTimer();
+}
+
+/**
+ * タイマーを一時停止（必殺技用）
+ */
+function pauseTimer() {
+    if (!timerState.isRunning || timerState.isPaused) return;
+
+    timerState.isPaused = true;
+    timerState.pausedTime = timerState.currentTime;
+
+    if (timerState.animationId) {
+        cancelAnimationFrame(timerState.animationId);
+        timerState.animationId = null;
+    }
+
+    if (DEBUG_MODE) console.log('⏸️ タイマー一時停止:', timerState.currentTime / 1000 + '秒残り');
+}
+
+/**
+ * タイマーを再開（必殺技解除時）
+ */
+function resumeTimer() {
+    if (!timerState.isRunning || !timerState.isPaused) return;
+
+    timerState.isPaused = false;
+    timerState.startTimestamp = performance.now();
+    timerState.currentTime = timerState.pausedTime;
+
+    if (DEBUG_MODE) console.log('▶️ タイマー再開:', timerState.currentTime / 1000 + '秒残り');
+
+    updateTimer();
+}
+
+/**
+ * タイマーを停止
+ */
+function stopTimer() {
+    timerState.isRunning = false;
+    timerState.isPaused = false;
+
+    if (timerState.animationId) {
+        cancelAnimationFrame(timerState.animationId);
+        timerState.animationId = null;
+    }
+
+    if (DEBUG_MODE) console.log('⏹️ タイマー停止');
+}
+
+/**
+ * タイマーをリセット
+ */
+function resetTimer() {
+    stopTimer();
+    timerState.currentTime = 0;
+    updateTimerUI();
+}
+
+/**
+ * タイマー更新（requestAnimationFrame）
+ */
+function updateTimer() {
+    if (!timerState.isRunning || timerState.isPaused) return;
+
+    const now = performance.now();
+    const elapsed = now - timerState.startTimestamp;
+    timerState.currentTime = Math.max(0, timerState.pausedTime > 0 ? timerState.pausedTime - elapsed : timerState.maxTime - elapsed);
+
+    // UI更新
+    updateTimerUI();
+
+    // 時間切れチェック
+    if (timerState.currentTime <= 0) {
+        onTimeUp();
+        return;
+    }
+
+    // 次フレーム
+    timerState.animationId = requestAnimationFrame(updateTimer);
+}
+
+/**
+ * タイマーUI更新
+ */
+function updateTimerUI() {
+    const timerBar = document.getElementById('timerBar');
+    const timerText = document.getElementById('timerText');
+
+    if (!timerBar || !timerText) return;
+
+    const percentage = (timerState.currentTime / timerState.maxTime) * 100;
+    const seconds = (timerState.currentTime / 1000).toFixed(1);
+
+    timerBar.style.width = percentage + '%';
+    timerText.textContent = seconds + 's';
+
+    // 残り時間に応じて色変化
+    timerBar.classList.remove('timer-low', 'timer-critical');
+    if (percentage <= 20) {
+        timerBar.classList.add('timer-critical');
+    } else if (percentage <= 50) {
+        timerBar.classList.add('timer-low');
+    }
+}
+
+/**
+ * 時間切れ時の処理
+ */
+function onTimeUp() {
+    if (DEBUG_MODE) console.log('⏰ 時間切れ！');
+
+    stopTimer();
+
+    // 不正解と同じ処理
+    gameState.combo = 0;
+    playIncorrectSound();
+
+    // フラッシュエフェクト
+    gsap.to('.game-main', {
+        backgroundColor: 'rgba(255, 0, 0, 0.3)',
+        duration: 0.2,
+        yoyo: true,
+        repeat: 1,
+        onComplete: () => {
+            gsap.set('.game-main', { backgroundColor: 'transparent' });
+        }
+    });
+
+    // 次の問題へ
+    setTimeout(() => {
+        generateQuestion();
+    }, 800);
+}
+
 /**
  * 設定パネル初期化
  */
@@ -587,6 +759,27 @@ function initSettingsPanel() {
         const volume = parseInt(e.target.value) / 100;
         setEffectVolume(volume);
         effectVolumeValue.textContent = e.target.value + '%';
+    });
+
+    // 時間制限ON/OFFボタン
+    const timeLimitToggleBtn = document.getElementById('timeLimitEnabled');
+    timeLimitToggleBtn.addEventListener('click', () => {
+        gameState.timeLimitEnabled = !gameState.timeLimitEnabled;
+        timeLimitToggleBtn.textContent = gameState.timeLimitEnabled ? 'ON' : 'OFF';
+        timeLimitToggleBtn.classList.toggle('active', gameState.timeLimitEnabled);
+
+        // タイマーコンテナの表示/非表示
+        const timerContainer = document.getElementById('timerContainer');
+        if (timerContainer) {
+            timerContainer.style.display = gameState.timeLimitEnabled ? 'flex' : 'none';
+        }
+
+        if (DEBUG_MODE) console.log('時間制限:', gameState.timeLimitEnabled ? 'ON' : 'OFF');
+
+        // 現在タイマーが動作中ならリセット
+        if (!gameState.timeLimitEnabled && timerState.isRunning) {
+            resetTimer();
+        }
     });
 }
 

@@ -42,6 +42,14 @@
                     <span id="currentExp">0</span> / <span id="maxExp">10</span> EXP
                 </span>
             </div>
+
+            <!-- タイマーバー（時間制限モード有効時のみ表示） -->
+            <div id="timerContainer" class="timer-container" style="display: none;">
+                <div class="timer-bar-wrapper">
+                    <div id="timerBar" class="timer-bar"></div>
+                </div>
+                <span id="timerText" class="timer-text">10.0s</span>
+            </div>
         </header>
 
         <!-- メインゲームエリア -->
@@ -179,6 +187,13 @@
                     <label for="effectVolume">効果音音量:</label>
                     <input type="range" id="effectVolume" min="0" max="100" value="50" class="volume-slider">
                     <span id="effectVolumeValue" class="volume-value">50%</span>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h4>ゲーム設定</h4>
+                <div class="setting-item">
+                    <label for="timeLimitEnabled">時間制限:</label>
+                    <button id="timeLimitEnabled" class="sound-toggle-btn">OFF</button>
                 </div>
             </div>
         </div>
