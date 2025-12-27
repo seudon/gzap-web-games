@@ -17,7 +17,9 @@ const gameState = {
     isAnswering: false,  // 回答中フラグ
     soundInitialized: false,  // サウンドシステム初期化済みフラグ
     settingsPanelInitialized: false,  // 設定パネル初期化済みフラグ
-    drumButtonsInitialized: false  // ドラムボタン初期化済みフラグ
+    drumButtonsInitialized: false,  // ドラムボタン初期化済みフラグ
+    drumClickCount: 0,   // ドラムボタンクリック回数
+    currentFormulaIndex: 0  // 現在表示中の公式インデックス
 };
 
 // ゲーム設定
@@ -382,6 +384,10 @@ function gameComplete() {
     // 最終スコアを表示
     document.getElementById('finalScore').textContent = gameState.score;
 
+    // ドラムクリックカウントと公式インデックスをリセット
+    gameState.drumClickCount = 0;
+    gameState.currentFormulaIndex = 0;
+
     // ドラムボタンのイベントリスナー設定（初回のみ）
     if (!gameState.drumButtonsInitialized) {
         initDrumButtons();
@@ -570,6 +576,44 @@ function initSettingsPanel() {
 }
 
 /**
+ * 公式を表示する（ドラム10回以上で発動）
+ */
+function displayFormula() {
+    // 公式リストが存在しない場合は何もしない
+    if (typeof formulas === 'undefined' || formulas.length === 0) {
+        if (DEBUG_MODE) console.warn('⚠️ 公式リストが見つかりません');
+        return;
+    }
+
+    // 現在の公式を取得
+    const formula = formulas[gameState.currentFormulaIndex];
+
+    // メッセージとスコア表示を公式に置き換え
+    const messageElement = document.querySelector('.complete-message');
+    const scoreElement = document.querySelector('.complete-score');
+
+    if (messageElement && scoreElement) {
+        messageElement.textContent = formula.title;
+        scoreElement.innerHTML = formula.formula;
+
+        // アニメーション効果
+        gsap.fromTo(messageElement,
+            { scale: 0.8, opacity: 0 },
+            { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(1.7)' }
+        );
+        gsap.fromTo(scoreElement,
+            { scale: 0.8, opacity: 0 },
+            { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(1.7)', delay: 0.1 }
+        );
+
+        if (DEBUG_MODE) console.log(`📚 公式表示 [${gameState.currentFormulaIndex + 1}/${formulas.length}]:`, formula.title);
+    }
+
+    // 次の公式へ進む（最後まで行ったら最初に戻る）
+    gameState.currentFormulaIndex = (gameState.currentFormulaIndex + 1) % formulas.length;
+}
+
+/**
  * エンディングドラムボタン初期化
  */
 function initDrumButtons() {
@@ -582,8 +626,16 @@ function initDrumButtons() {
             // ボタン番号を取得（1～4）
             const buttonNumber = parseInt(button.dataset.drum);
 
+            // ドラムクリック回数をカウント
+            gameState.drumClickCount++;
+
             // ドラムサウンドを再生（ボタンごとに異なるグループ）
             playDrumSound(buttonNumber);
+
+            // 10回以上叩いたら公式を表示
+            if (gameState.drumClickCount >= 10) {
+                displayFormula();
+            }
 
             // Lv1相当のエフェクト（軽めのパーティクル）
             const buttonRect = button.getBoundingClientRect();
