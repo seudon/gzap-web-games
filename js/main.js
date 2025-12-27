@@ -4,7 +4,7 @@
 
 // 🛠️ 開発モード（デバッグログとデバッグパネルの表示制御）
 // 本番環境では false、開発時は true に変更してください
-const DEBUG_MODE = false;
+const DEBUG_MODE = true;
 
 // ゲーム状態管理
 const gameState = {
@@ -14,7 +14,12 @@ const gameState = {
     exp: 0,             // 現在の経験値
     maxExp: 10,         // レベルアップに必要な経験値
     currentQuestion: null,  // 現在の問題 { num1, num2, answer }
-    isAnswering: false  // 回答中フラグ
+    isAnswering: false,  // 回答中フラグ
+    soundInitialized: false,  // サウンドシステム初期化済みフラグ
+    settingsPanelInitialized: false,  // 設定パネル初期化済みフラグ
+    drumButtonsInitialized: false,  // ドラムボタン初期化済みフラグ
+    drumClickCount: 0,   // ドラムボタンクリック回数
+    currentFormulaIndex: 0  // 現在表示中の公式インデックス
 };
 
 // ゲーム設定
@@ -48,6 +53,18 @@ function initGame() {
         document.getElementById('gameCompleteEffect').classList.add('hidden');
         initGame();
     });
+
+    // サウンドシステムの初期化（初回のみ）
+    if (!gameState.soundInitialized) {
+        initSoundSystem();
+        gameState.soundInitialized = true;
+    }
+
+    // 設定パネルの初期化（初回のみ）
+    if (!gameState.settingsPanelInitialized) {
+        initSettingsPanel();
+        gameState.settingsPanelInitialized = true;
+    }
 
     // デバッグパネルの初期化と表示制御
     initDebugPanel();
@@ -180,6 +197,9 @@ function handleAnswer(answer, button) {
     if (gameState.isAnswering) return;
     gameState.isAnswering = true;
 
+    // ボタンクリック音を再生
+    playButtonSound();
+
     const correctAnswer = gameState.currentQuestion.answer;
 
     if (answer === correctAnswer) {
@@ -205,6 +225,12 @@ function handleCorrectAnswer(button) {
 
     // コンボ増加
     gameState.combo++;
+
+    // 正解音を再生（コンボ数に応じて変化）
+    playCorrectSound(gameState.combo);
+
+    // コンボ達成音を再生（5, 10, 15コンボ時）
+    playComboSound(gameState.combo);
 
     // スコア増加
     const scoreGain = gameConfig.scorePerCorrect * gameState.combo;
@@ -268,6 +294,9 @@ function handleWrongAnswer(button) {
     stopAllButtonAnimations();
     if (DEBUG_MODE) console.log('📍 handleWrongAnswer: stopAllButtonAnimations 呼び出し完了');
 
+    // 不正解音を再生
+    playWrongSound();
+
     // コンボリセット
     const oldCombo = gameState.combo;
     gameState.combo = 0;
@@ -303,6 +332,12 @@ function levelUp() {
 
     // レベルアップエフェクト
     playLevelUpEffect();
+
+    // レベルアップ音を再生
+    playLevelUpSound();
+
+    // BGM切り替え（Lv10→Lv11の時）
+    onLevelUpBGM(gameState.level);
 
     // UI更新（レベル、スコア、コンボのみ）
     animateNumber('level', gameState.level);
@@ -340,8 +375,24 @@ function levelUp() {
 function gameComplete() {
     if (DEBUG_MODE) console.log('ゲームクリア！');
 
+    // クリア音を再生
+    playClearSound();
+
+    // エンディングBGMに切り替え
+    onGameClearBGM();
+
     // 最終スコアを表示
     document.getElementById('finalScore').textContent = gameState.score;
+
+    // ドラムクリックカウントと公式インデックスをリセット
+    gameState.drumClickCount = 0;
+    gameState.currentFormulaIndex = 0;
+
+    // ドラムボタンのイベントリスナー設定（初回のみ）
+    if (!gameState.drumButtonsInitialized) {
+        initDrumButtons();
+        gameState.drumButtonsInitialized = true;
+    }
 
     // クリアエフェクト再生
     playGameCompleteEffect();
@@ -468,6 +519,148 @@ function updateDebugPanel() {
         } else {
             button.classList.remove('active');
         }
+    });
+}
+
+/**
+ * 設定パネル初期化
+ */
+function initSettingsPanel() {
+    if (DEBUG_MODE) console.log('🔊 設定パネル初期化');
+
+    const openButton = document.getElementById('openSettings');
+    const closeButton = document.getElementById('closeSettings');
+    const settingsPanel = document.getElementById('settingsPanel');
+
+    // 開くボタン
+    openButton.addEventListener('click', () => {
+        settingsPanel.classList.remove('hidden');
+        openButton.style.display = 'none';
+        if (DEBUG_MODE) console.log('設定パネル: 表示');
+    });
+
+    // 閉じるボタン
+    closeButton.addEventListener('click', () => {
+        settingsPanel.classList.add('hidden');
+        openButton.style.display = 'flex';
+        if (DEBUG_MODE) console.log('設定パネル: 非表示');
+    });
+
+    // サウンドON/OFFボタン
+    const soundToggleBtn = document.getElementById('soundEnabled');
+    soundToggleBtn.addEventListener('click', () => {
+        const newState = !soundConfig.enabled;
+        toggleSound(newState);
+        soundToggleBtn.textContent = newState ? 'ON' : 'OFF';
+        soundToggleBtn.classList.toggle('active', newState);
+        if (DEBUG_MODE) console.log('サウンド:', newState ? 'ON' : 'OFF');
+    });
+
+    // BGM音量スライダー
+    const bgmVolumeSlider = document.getElementById('bgmVolume');
+    const bgmVolumeValue = document.getElementById('bgmVolumeValue');
+    bgmVolumeSlider.addEventListener('input', (e) => {
+        const volume = parseInt(e.target.value) / 100;
+        setBGMVolume(volume);
+        bgmVolumeValue.textContent = e.target.value + '%';
+    });
+
+    // 効果音音量スライダー
+    const effectVolumeSlider = document.getElementById('effectVolume');
+    const effectVolumeValue = document.getElementById('effectVolumeValue');
+    effectVolumeSlider.addEventListener('input', (e) => {
+        const volume = parseInt(e.target.value) / 100;
+        setEffectVolume(volume);
+        effectVolumeValue.textContent = e.target.value + '%';
+    });
+}
+
+/**
+ * 知識を表示する（ドラム10回以上で発動）
+ */
+function displayFormula() {
+    // 知識リストが存在しない場合は何もしない
+    if (typeof knowledgeItems === 'undefined' || knowledgeItems.length === 0) {
+        if (DEBUG_MODE) console.warn('⚠️ 知識データが見つかりません');
+        return;
+    }
+
+    // 現在の知識を取得
+    const item = knowledgeItems[gameState.currentFormulaIndex];
+
+    // メッセージとスコア表示を知識に置き換え
+    const messageElement = document.querySelector('.complete-message');
+    const scoreElement = document.querySelector('.complete-score');
+
+    if (messageElement && scoreElement) {
+        // カテゴリー + タイトルを表示
+        messageElement.innerHTML = `<span style="font-size: 0.7em; color: #ffd93d;">[${item.category}]</span><br>${item.title}`;
+        scoreElement.innerHTML = item.content;
+
+        // アニメーション効果
+        gsap.fromTo(messageElement,
+            { scale: 0.8, opacity: 0 },
+            { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(1.7)' }
+        );
+        gsap.fromTo(scoreElement,
+            { scale: 0.8, opacity: 0 },
+            { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(1.7)', delay: 0.1 }
+        );
+
+        if (DEBUG_MODE) console.log(`📚 知識表示 [${gameState.currentFormulaIndex + 1}/${knowledgeItems.length}] [${item.category}]:`, item.title);
+    }
+
+    // 次の知識へ進む（最後まで行ったら最初に戻る）
+    gameState.currentFormulaIndex = (gameState.currentFormulaIndex + 1) % knowledgeItems.length;
+}
+
+/**
+ * エンディングドラムボタン初期化
+ */
+function initDrumButtons() {
+    if (DEBUG_MODE) console.log('🥁 ドラムボタン初期化');
+
+    const drumButtons = document.querySelectorAll('.drum-btn');
+
+    drumButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // ボタン番号を取得（1～4）
+            const buttonNumber = parseInt(button.dataset.drum);
+
+            // ドラムクリック回数をカウント
+            gameState.drumClickCount++;
+
+            // ドラムサウンドを再生（ボタンごとに異なるグループ）
+            playDrumSound(buttonNumber);
+
+            // 10回以上叩いたら公式を表示
+            if (gameState.drumClickCount >= 10) {
+                displayFormula();
+            }
+
+            // Lv1相当のエフェクト（軽めのパーティクル）
+            const buttonRect = button.getBoundingClientRect();
+            const centerX = buttonRect.left + buttonRect.width / 2;
+            const centerY = buttonRect.top + buttonRect.height / 2;
+
+            // パーティクル生成（10個程度）
+            for (let i = 0; i < 10; i++) {
+                createParticle(centerX, centerY, '#ffd93d');
+            }
+
+            // ボタンフラッシュエフェクト
+            gsap.timeline()
+                .to(button, {
+                    scale: 0.9,
+                    duration: 0.1,
+                    ease: 'power2.out'
+                })
+                .to(button, {
+                    scale: 1,
+                    duration: 0.2,
+                    ease: 'elastic.out(1, 0.3)'
+                });
+        });
     });
 }
 
