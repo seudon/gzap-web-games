@@ -16,7 +16,8 @@ const gameState = {
     currentQuestion: null,  // 現在の問題 { num1, num2, answer }
     isAnswering: false,  // 回答中フラグ
     soundInitialized: false,  // サウンドシステム初期化済みフラグ
-    settingsPanelInitialized: false  // 設定パネル初期化済みフラグ
+    settingsPanelInitialized: false,  // 設定パネル初期化済みフラグ
+    drumButtonsInitialized: false  // ドラムボタン初期化済みフラグ
 };
 
 // ゲーム設定
@@ -381,6 +382,12 @@ function gameComplete() {
     // 最終スコアを表示
     document.getElementById('finalScore').textContent = gameState.score;
 
+    // ドラムボタンのイベントリスナー設定（初回のみ）
+    if (!gameState.drumButtonsInitialized) {
+        initDrumButtons();
+        gameState.drumButtonsInitialized = true;
+    }
+
     // クリアエフェクト再生
     playGameCompleteEffect();
 }
@@ -559,6 +566,47 @@ function initSettingsPanel() {
         const volume = parseInt(e.target.value) / 100;
         setEffectVolume(volume);
         effectVolumeValue.textContent = e.target.value + '%';
+    });
+}
+
+/**
+ * エンディングドラムボタン初期化
+ */
+function initDrumButtons() {
+    if (DEBUG_MODE) console.log('🥁 ドラムボタン初期化');
+
+    const drumButtons = document.querySelectorAll('.drum-btn');
+
+    drumButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // ドラムサウンドを再生（ランダム）
+            playButtonSound();
+
+            // Lv1相当のエフェクト（軽めのパーティクル）
+            const buttonRect = button.getBoundingClientRect();
+            const centerX = buttonRect.left + buttonRect.width / 2;
+            const centerY = buttonRect.top + buttonRect.height / 2;
+
+            // パーティクル生成（10個程度）
+            for (let i = 0; i < 10; i++) {
+                createParticle(centerX, centerY, '#ffd93d');
+            }
+
+            // ボタンフラッシュエフェクト
+            gsap.timeline()
+                .to(button, {
+                    scale: 0.9,
+                    duration: 0.1,
+                    ease: 'power2.out'
+                })
+                .to(button, {
+                    scale: 1,
+                    duration: 0.2,
+                    ease: 'elastic.out(1, 0.3)'
+                });
+
+            if (DEBUG_MODE) console.log('🥁 ドラム演奏！');
+        });
     });
 }
 
