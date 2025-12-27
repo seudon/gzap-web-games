@@ -14,7 +14,9 @@ const gameState = {
     exp: 0,             // 現在の経験値
     maxExp: 10,         // レベルアップに必要な経験値
     currentQuestion: null,  // 現在の問題 { num1, num2, answer }
-    isAnswering: false  // 回答中フラグ
+    isAnswering: false,  // 回答中フラグ
+    soundInitialized: false,  // サウンドシステム初期化済みフラグ
+    settingsPanelInitialized: false  // 設定パネル初期化済みフラグ
 };
 
 // ゲーム設定
@@ -48,6 +50,18 @@ function initGame() {
         document.getElementById('gameCompleteEffect').classList.add('hidden');
         initGame();
     });
+
+    // サウンドシステムの初期化（初回のみ）
+    if (!gameState.soundInitialized) {
+        initSoundSystem();
+        gameState.soundInitialized = true;
+    }
+
+    // 設定パネルの初期化（初回のみ）
+    if (!gameState.settingsPanelInitialized) {
+        initSettingsPanel();
+        gameState.settingsPanelInitialized = true;
+    }
 
     // デバッグパネルの初期化と表示制御
     initDebugPanel();
@@ -180,6 +194,9 @@ function handleAnswer(answer, button) {
     if (gameState.isAnswering) return;
     gameState.isAnswering = true;
 
+    // ボタンクリック音を再生
+    playButtonSound();
+
     const correctAnswer = gameState.currentQuestion.answer;
 
     if (answer === correctAnswer) {
@@ -205,6 +222,12 @@ function handleCorrectAnswer(button) {
 
     // コンボ増加
     gameState.combo++;
+
+    // 正解音を再生（コンボ数に応じて変化）
+    playCorrectSound(gameState.combo);
+
+    // コンボ達成音を再生（5, 10, 15コンボ時）
+    playComboSound(gameState.combo);
 
     // スコア増加
     const scoreGain = gameConfig.scorePerCorrect * gameState.combo;
@@ -268,6 +291,9 @@ function handleWrongAnswer(button) {
     stopAllButtonAnimations();
     if (DEBUG_MODE) console.log('📍 handleWrongAnswer: stopAllButtonAnimations 呼び出し完了');
 
+    // 不正解音を再生
+    playWrongSound();
+
     // コンボリセット
     const oldCombo = gameState.combo;
     gameState.combo = 0;
@@ -304,6 +330,12 @@ function levelUp() {
     // レベルアップエフェクト
     playLevelUpEffect();
 
+    // レベルアップ音を再生
+    playLevelUpSound();
+
+    // BGM切り替え（Lv10→Lv11の時）
+    onLevelUpBGM(gameState.level);
+
     // UI更新（レベル、スコア、コンボのみ）
     animateNumber('level', gameState.level);
     animateNumber('score', gameState.score);
@@ -339,6 +371,12 @@ function levelUp() {
  */
 function gameComplete() {
     if (DEBUG_MODE) console.log('ゲームクリア！');
+
+    // クリア音を再生
+    playClearSound();
+
+    // エンディングBGMに切り替え
+    onGameClearBGM();
 
     // 最終スコアを表示
     document.getElementById('finalScore').textContent = gameState.score;
@@ -468,6 +506,52 @@ function updateDebugPanel() {
         } else {
             button.classList.remove('active');
         }
+    });
+}
+
+/**
+ * 設定パネル初期化
+ */
+function initSettingsPanel() {
+    if (DEBUG_MODE) console.log('🔊 設定パネル初期化');
+
+    // 表示/非表示トグル
+    const toggleButton = document.getElementById('toggleSettings');
+    const settingsContent = document.querySelector('.settings-content');
+    let isVisible = true;
+
+    toggleButton.addEventListener('click', () => {
+        isVisible = !isVisible;
+        settingsContent.classList.toggle('hidden');
+        if (DEBUG_MODE) console.log('設定パネル:', isVisible ? '表示' : '非表示');
+    });
+
+    // サウンドON/OFFボタン
+    const soundToggleBtn = document.getElementById('soundEnabled');
+    soundToggleBtn.addEventListener('click', () => {
+        const newState = !soundConfig.enabled;
+        toggleSound(newState);
+        soundToggleBtn.textContent = newState ? 'ON' : 'OFF';
+        soundToggleBtn.classList.toggle('active', newState);
+        if (DEBUG_MODE) console.log('サウンド:', newState ? 'ON' : 'OFF');
+    });
+
+    // BGM音量スライダー
+    const bgmVolumeSlider = document.getElementById('bgmVolume');
+    const bgmVolumeValue = document.getElementById('bgmVolumeValue');
+    bgmVolumeSlider.addEventListener('input', (e) => {
+        const volume = parseInt(e.target.value) / 100;
+        setBGMVolume(volume);
+        bgmVolumeValue.textContent = e.target.value + '%';
+    });
+
+    // 効果音音量スライダー
+    const effectVolumeSlider = document.getElementById('effectVolume');
+    const effectVolumeValue = document.getElementById('effectVolumeValue');
+    effectVolumeSlider.addEventListener('input', (e) => {
+        const volume = parseInt(e.target.value) / 100;
+        setEffectVolume(volume);
+        effectVolumeValue.textContent = e.target.value + '%';
     });
 }
 

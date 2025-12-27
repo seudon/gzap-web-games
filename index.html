@@ -138,11 +138,42 @@
         </div>
     </div>
 
+    <!-- 設定パネル -->
+    <div id="settingsPanel" class="settings-panel">
+        <div class="settings-header">
+            <h3>🔊 サウンド設定</h3>
+            <button id="toggleSettings" class="settings-toggle">表示/非表示</button>
+        </div>
+        <div class="settings-content">
+            <div class="settings-section">
+                <h4>サウンド</h4>
+                <div class="setting-item">
+                    <label for="soundEnabled">サウンド:</label>
+                    <button id="soundEnabled" class="sound-toggle-btn">OFF</button>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h4>音量調整</h4>
+                <div class="setting-item">
+                    <label for="bgmVolume">BGM音量:</label>
+                    <input type="range" id="bgmVolume" min="0" max="100" value="30" class="volume-slider">
+                    <span id="bgmVolumeValue" class="volume-value">30%</span>
+                </div>
+                <div class="setting-item">
+                    <label for="effectVolume">効果音音量:</label>
+                    <input type="range" id="effectVolume" min="0" max="100" value="50" class="volume-slider">
+                    <span id="effectVolumeValue" class="volume-value">50%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- GSAP CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 
     <!-- ゲームスクリプト（main.js を先に読み込む - DEBUG_MODE定数を定義）-->
     <script src="js/main.js"></script>
+    <script src="js/sound.js"></script>
     <script src="js/animations.js"></script>
 </body>
 </html>
