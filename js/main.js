@@ -1016,8 +1016,8 @@ function resetSpecialMove(moveType) {
             // タイマーとボタンアニメーションを再開
             resumeTimer();
             resumeButtonAnimations();
-            // BGMを再開（レベルに応じて）
-            restoreBGM();
+            // BGMを停止位置から再開
+            resumeCurrentBGM();
             break;
 
         case 'slowMotion':
@@ -1099,8 +1099,8 @@ function activateTimeStop() {
         pauseTimer();
         pauseButtonAnimations();
 
-        // BGMを停止
-        stopAllBGM();
+        // BGMを一時停止（再生位置を保持）
+        pauseCurrentBGM();
 
         // 10秒後に解除
         specialMoveState.cooldownTimers.timeStop = setTimeout(() => {
