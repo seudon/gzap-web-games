@@ -872,6 +872,22 @@ function playGaugeFullEffect() {
  * @param {string} color - テキストカラー
  */
 function showSpecialMoveName(moveName, color) {
+    // 背景オーバーレイを作成（コントラスト向上）
+    const overlay = document.createElement('div');
+    overlay.className = 'special-move-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 9999;
+        pointer-events: none;
+    `;
+    document.body.appendChild(overlay);
+
+    // 必殺技名のテキスト表示
     const nameDisplay = document.createElement('div');
     nameDisplay.className = 'special-move-name-display';
     nameDisplay.textContent = moveName;
@@ -884,6 +900,7 @@ function showSpecialMoveName(moveName, color) {
         font-weight: bold;
         color: ${color};
         text-shadow: 0 0 40px ${color}, 0 0 80px ${color}, 0 0 120px ${color};
+        -webkit-text-stroke: 3px rgba(0, 0, 0, 0.8);
         z-index: 10000;
         text-align: center;
         pointer-events: none;
@@ -891,6 +908,12 @@ function showSpecialMoveName(moveName, color) {
         letter-spacing: 0.5rem;
     `;
     document.body.appendChild(nameDisplay);
+
+    // 背景のフェードイン
+    gsap.fromTo(overlay,
+        { opacity: 0 },
+        { opacity: 1, duration: 0.2, ease: 'power2.out' }
+    );
 
     // 派手な登場アニメーション
     gsap.fromTo(nameDisplay,
@@ -912,6 +935,15 @@ function showSpecialMoveName(moveName, color) {
         delay: 1,
         ease: 'power2.in',
         onComplete: () => nameDisplay.remove()
+    });
+
+    // 背景も同時にフェードアウト
+    gsap.to(overlay, {
+        opacity: 0,
+        duration: 0.5,
+        delay: 1,
+        ease: 'power2.in',
+        onComplete: () => overlay.remove()
     });
 }
 
