@@ -20,7 +20,8 @@ const gameState = {
     drumButtonsInitialized: false,  // ドラムボタン初期化済みフラグ
     drumClickCount: 0,   // ドラムボタンクリック回数
     currentFormulaIndex: 0,  // 現在表示中の公式インデックス
-    timeLimitEnabled: false  // 時間制限モードON/OFF
+    timeLimitEnabled: false,  // 時間制限モードON/OFF
+    specialMoveButtonsInitialized: false  // 必殺技ボタン初期化済みフラグ
 };
 
 // ゲーム設定
@@ -103,6 +104,12 @@ function initGame() {
     if (!gameState.settingsPanelInitialized) {
         initSettingsPanel();
         gameState.settingsPanelInitialized = true;
+    }
+
+    // 必殺技ボタンの初期化（初回のみ）
+    if (!gameState.specialMoveButtonsInitialized) {
+        initSpecialMoveButtons();
+        gameState.specialMoveButtonsInitialized = true;
     }
 
     // デバッグパネルの初期化と表示制御
@@ -295,6 +302,9 @@ function handleCorrectAnswer(button) {
     const expGain = calculateExpGain(gameState.combo);
     gameState.exp += expGain;
     if (DEBUG_MODE) console.log('⭐ 経験値 +' + expGain + ' (コンボ' + gameState.combo + 'ボーナス) (' + gameState.exp + '/' + gameState.maxExp + ')');
+
+    // 必殺技ゲージ増加（コンボに応じて）
+    chargeSpecialGauge(gameState.combo);
 
     // エフェクト再生
     playCorrectEffect(button, gameState.combo);
@@ -740,6 +750,395 @@ function onTimeUp() {
     setTimeout(() => {
         generateQuestion();
     }, 800);
+}
+
+// ========================================
+// 必殺技システム
+// ========================================
+
+/**
+ * 必殺技ゲージをチャージ
+ * @param {number} combo - 現在のコンボ数
+ */
+function chargeSpecialGauge(combo) {
+    // コンボに応じてゲージ増加（コンボが高いほど多く増える）
+    const chargeAmount = Math.min(5 + combo * 2, 20); // 5-20の範囲
+    specialMoveState.gauge = Math.min(specialMoveState.gauge + chargeAmount, specialMoveState.maxGauge);
+
+    if (DEBUG_MODE) console.log('⚡ ゲージ +' + chargeAmount + ' (' + specialMoveState.gauge + '/' + specialMoveState.maxGauge + ')');
+
+    updateSpecialGaugeUI();
+
+    // ゲージが溜まった時のエフェクト
+    if (specialMoveState.gauge === specialMoveState.maxGauge) {
+        playGaugeFullEffect();
+    }
+}
+
+/**
+ * 必殺技ゲージUI更新
+ */
+function updateSpecialGaugeUI() {
+    const gaugeFill = document.querySelector('.special-gauge-fill');
+    const gaugeText = document.getElementById('specialGaugeText');
+
+    if (gaugeFill) {
+        gaugeFill.style.width = specialMoveState.gauge + '%';
+    }
+    if (gaugeText) {
+        gaugeText.textContent = Math.floor(specialMoveState.gauge) + '%';
+    }
+
+    // ボタンの有効/無効を更新
+    updateSpecialButtons();
+}
+
+/**
+ * 必殺技ボタンの有効/無効を更新
+ */
+function updateSpecialButtons() {
+    const timeStopBtn = document.getElementById('timeStopBtn');
+    const slowMotionBtn = document.getElementById('slowMotionBtn');
+    const hintBtn = document.getElementById('hintBtn');
+
+    // 時間停止: 40以上で使用可能
+    if (timeStopBtn) {
+        timeStopBtn.disabled = specialMoveState.gauge < 40 || specialMoveState.active.timeStop;
+    }
+
+    // スローモーション: 30以上で使用可能
+    if (slowMotionBtn) {
+        slowMotionBtn.disabled = specialMoveState.gauge < 30 || specialMoveState.active.slowMotion;
+    }
+
+    // ヒント: 20以上で使用可能
+    if (hintBtn) {
+        hintBtn.disabled = specialMoveState.gauge < 20 || specialMoveState.active.hint;
+    }
+}
+
+/**
+ * ゲージ満タン時のエフェクト
+ */
+function playGaugeFullEffect() {
+    const gaugeContainer = document.querySelector('.special-gauge-container');
+
+    // 画面フラッシュ
+    gsap.to('.game-main', {
+        backgroundColor: 'rgba(255, 217, 61, 0.3)',
+        duration: 0.15,
+        yoyo: true,
+        repeat: 3
+    });
+
+    // ゲージコンテナを強調
+    gsap.timeline()
+        .to(gaugeContainer, {
+            scale: 1.1,
+            duration: 0.2,
+            ease: 'back.out(2)'
+        })
+        .to(gaugeContainer, {
+            scale: 1,
+            duration: 0.3,
+            ease: 'elastic.out(1, 0.5)'
+        });
+
+    if (DEBUG_MODE) console.log('⚡⚡⚡ ゲージMAX！必殺技使用可能！');
+}
+
+/**
+ * 必殺技発動の共通処理
+ * @param {string} moveType - 必殺技タイプ ('timeStop', 'slowMotion', 'hint')
+ * @param {number} cost - 消費ゲージ
+ * @param {Function} activateFunc - 発動処理関数
+ */
+function activateSpecialMove(moveType, cost, activateFunc) {
+    // ゲージが足りない場合は発動しない
+    if (specialMoveState.gauge < cost) {
+        if (DEBUG_MODE) console.log('⚠️ ゲージ不足:', specialMoveState.gauge + '/' + cost);
+        return;
+    }
+
+    // 既に発動中の場合は発動しない
+    if (specialMoveState.active[moveType]) {
+        if (DEBUG_MODE) console.log('⚠️ 既に発動中:', moveType);
+        return;
+    }
+
+    // ゲージ消費
+    specialMoveState.gauge -= cost;
+    updateSpecialGaugeUI();
+
+    // 発動状態にする
+    specialMoveState.active[moveType] = true;
+
+    // ボタンにactiveクラスを追加
+    const button = document.querySelector(`[data-move="${moveType}"]`);
+    if (button) {
+        button.classList.add('active');
+    }
+
+    if (DEBUG_MODE) console.log('🌟 必殺技発動!', moveType, '消費:', cost);
+
+    // 発動処理実行
+    activateFunc();
+}
+
+/**
+ * ⏸️ 時間停止 発動
+ */
+function activateTimeStop() {
+    activateSpecialMove('timeStop', 40, () => {
+        // ド派手な発動エフェクト
+        const gameMain = document.querySelector('.game-main');
+
+        // 画面全体に青白いフラッシュ
+        gsap.timeline()
+            .to(gameMain, {
+                backgroundColor: 'rgba(100, 200, 255, 0.8)',
+                duration: 0.1
+            })
+            .to(gameMain, {
+                backgroundColor: 'rgba(100, 200, 255, 0.2)',
+                duration: 0.3
+            });
+
+        // 時間停止エフェクト（時計アイコンを表示）
+        const timeStopIcon = document.createElement('div');
+        timeStopIcon.className = 'special-effect-icon';
+        timeStopIcon.innerHTML = '⏸️<br><span style="font-size: 1.5rem;">TIME STOP</span>';
+        timeStopIcon.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 5rem;
+            color: #00d4ff;
+            text-shadow: 0 0 30px #00d4ff, 0 0 60px #00d4ff;
+            z-index: 9999;
+            text-align: center;
+            pointer-events: none;
+        `;
+        document.body.appendChild(timeStopIcon);
+
+        gsap.fromTo(timeStopIcon,
+            { scale: 0, rotation: -180, opacity: 0 },
+            { scale: 1, rotation: 0, opacity: 1, duration: 0.5, ease: 'back.out(2)' }
+        );
+
+        // タイマーを一時停止
+        pauseTimer();
+
+        // 5秒後に解除
+        specialMoveState.cooldownTimers.timeStop = setTimeout(() => {
+            deactivateTimeStop();
+            gsap.to(timeStopIcon, {
+                scale: 0,
+                opacity: 0,
+                duration: 0.3,
+                onComplete: () => timeStopIcon.remove()
+            });
+        }, 5000);
+    });
+}
+
+/**
+ * ⏸️ 時間停止 解除
+ */
+function deactivateTimeStop() {
+    specialMoveState.active.timeStop = false;
+
+    const button = document.getElementById('timeStopBtn');
+    if (button) {
+        button.classList.remove('active');
+    }
+
+    // タイマーを再開
+    resumeTimer();
+
+    if (DEBUG_MODE) console.log('⏸️ 時間停止 解除');
+    updateSpecialButtons();
+}
+
+/**
+ * 🐌 スローモーション 発動
+ */
+function activateSlowMotion() {
+    activateSpecialMove('slowMotion', 30, () => {
+        // ド派手な発動エフェクト
+        const gameMain = document.querySelector('.game-main');
+
+        // 画面全体に紫のフラッシュ
+        gsap.timeline()
+            .to(gameMain, {
+                backgroundColor: 'rgba(150, 100, 255, 0.6)',
+                duration: 0.1
+            })
+            .to(gameMain, {
+                backgroundColor: 'rgba(150, 100, 255, 0.15)',
+                duration: 0.3
+            });
+
+        // スローモーションアイコン表示
+        const slowIcon = document.createElement('div');
+        slowIcon.className = 'special-effect-icon';
+        slowIcon.innerHTML = '🐌<br><span style="font-size: 1.5rem;">SLOW MOTION</span>';
+        slowIcon.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 5rem;
+            color: #9b59b6;
+            text-shadow: 0 0 30px #9b59b6, 0 0 60px #9b59b6;
+            z-index: 9999;
+            text-align: center;
+            pointer-events: none;
+        `;
+        document.body.appendChild(slowIcon);
+
+        gsap.fromTo(slowIcon,
+            { scale: 0, y: -100, opacity: 0 },
+            { scale: 1, y: 0, opacity: 1, duration: 0.6, ease: 'elastic.out(1, 0.5)' }
+        );
+
+        // GSAPのグローバルタイムスケールを遅くする
+        gsap.globalTimeline.timeScale(0.3);
+
+        // 8秒後に解除
+        specialMoveState.cooldownTimers.slowMotion = setTimeout(() => {
+            deactivateSlowMotion();
+            gsap.to(slowIcon, {
+                scale: 0,
+                opacity: 0,
+                duration: 0.3,
+                onComplete: () => slowIcon.remove()
+            });
+        }, 8000);
+    });
+}
+
+/**
+ * 🐌 スローモーション 解除
+ */
+function deactivateSlowMotion() {
+    specialMoveState.active.slowMotion = false;
+
+    const button = document.getElementById('slowMotionBtn');
+    if (button) {
+        button.classList.remove('active');
+    }
+
+    // タイムスケールを戻す
+    gsap.globalTimeline.timeScale(1);
+
+    if (DEBUG_MODE) console.log('🐌 スローモーション 解除');
+    updateSpecialButtons();
+}
+
+/**
+ * 💡 ヒント 発動
+ */
+function activateHint() {
+    activateSpecialMove('hint', 20, () => {
+        // ド派手な発動エフェクト
+        const gameMain = document.querySelector('.game-main');
+
+        // 画面全体に黄色いフラッシュ
+        gsap.timeline()
+            .to(gameMain, {
+                backgroundColor: 'rgba(255, 215, 0, 0.6)',
+                duration: 0.1
+            })
+            .to(gameMain, {
+                backgroundColor: 'transparent',
+                duration: 0.3
+            });
+
+        // 正解ボタンを探す
+        const correctAnswer = gameState.currentQuestion.answer;
+        const answerButtons = document.querySelectorAll('.answer-button');
+        let correctButton = null;
+
+        answerButtons.forEach(button => {
+            const buttonAnswer = parseInt(button.dataset.answer);
+            if (buttonAnswer === correctAnswer) {
+                correctButton = button;
+            }
+        });
+
+        if (correctButton) {
+            // 正解ボタンをキラキラさせる
+            correctButton.style.position = 'relative';
+            correctButton.style.zIndex = '1000';
+
+            // グロー効果
+            gsap.timeline()
+                .to(correctButton, {
+                    boxShadow: '0 0 30px 10px rgba(255, 215, 0, 1), 0 0 60px 20px rgba(255, 215, 0, 0.8)',
+                    scale: 1.15,
+                    duration: 0.3,
+                    ease: 'back.out(2)'
+                })
+                .to(correctButton, {
+                    boxShadow: '0 0 20px 5px rgba(255, 215, 0, 0.8), 0 0 40px 10px rgba(255, 215, 0, 0.6)',
+                    duration: 0.5,
+                    yoyo: true,
+                    repeat: 5
+                })
+                .to(correctButton, {
+                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                    scale: 1,
+                    duration: 0.3
+                });
+
+            // キラキラパーティクル
+            for (let i = 0; i < 20; i++) {
+                const buttonRect = correctButton.getBoundingClientRect();
+                const centerX = buttonRect.left + buttonRect.width / 2;
+                const centerY = buttonRect.top + buttonRect.height / 2;
+                createParticle(centerX, centerY, '#ffd700');
+            }
+        }
+
+        // ヒントは即座に終了
+        setTimeout(() => {
+            specialMoveState.active.hint = false;
+            const button = document.getElementById('hintBtn');
+            if (button) button.classList.remove('active');
+            updateSpecialButtons();
+        }, 100);
+    });
+}
+
+/**
+ * 必殺技ボタンの初期化
+ */
+function initSpecialMoveButtons() {
+    const timeStopBtn = document.getElementById('timeStopBtn');
+    const slowMotionBtn = document.getElementById('slowMotionBtn');
+    const hintBtn = document.getElementById('hintBtn');
+
+    if (timeStopBtn) {
+        timeStopBtn.addEventListener('click', () => {
+            activateTimeStop();
+        });
+    }
+
+    if (slowMotionBtn) {
+        slowMotionBtn.addEventListener('click', () => {
+            activateSlowMotion();
+        });
+    }
+
+    if (hintBtn) {
+        hintBtn.addEventListener('click', () => {
+            activateHint();
+        });
+    }
+
+    if (DEBUG_MODE) console.log('⚡ 必殺技ボタン初期化完了');
 }
 
 /**
