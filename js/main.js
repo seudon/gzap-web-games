@@ -4,7 +4,7 @@
 
 // 🛠️ 開発モード（デバッグログとデバッグパネルの表示制御）
 // 本番環境では false、開発時は true に変更してください
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 // ゲーム状態管理
 const gameState = {
@@ -19,7 +19,9 @@ const gameState = {
     settingsPanelInitialized: false,  // 設定パネル初期化済みフラグ
     drumButtonsInitialized: false,  // ドラムボタン初期化済みフラグ
     drumClickCount: 0,   // ドラムボタンクリック回数
-    currentFormulaIndex: 0  // 現在表示中の公式インデックス
+    currentFormulaIndex: 0,  // 現在表示中の公式インデックス
+    timeLimitEnabled: false,  // 時間制限モードON/OFF
+    specialMoveButtonsInitialized: false  // 必殺技ボタン初期化済みフラグ
 };
 
 // ゲーム設定
@@ -27,6 +29,38 @@ const gameConfig = {
     maxLevel: 20,       // 最大レベル
     expPerCorrect: 1,   // 正解時の経験値
     scorePerCorrect: 10 // 正解時のスコア
+};
+
+// タイマー状態管理（必殺技の時間停止機能に対応）
+const timerState = {
+    isRunning: false,   // タイマーが動作中か
+    isPaused: false,    // 一時停止中か（必殺技用）
+    currentTime: 0,     // 残り時間（ミリ秒）
+    maxTime: 10000,     // 制限時間（ミリ秒）
+    startTimestamp: 0,  // 開始時刻
+    pausedTime: 0,      // 一時停止時の残り時間
+    animationId: null   // requestAnimationFrameのID
+};
+
+// 必殺技状態管理
+const specialMoveState = {
+    gauge: 0,           // 必殺技ゲージ（0-100）
+    maxGauge: 100,      // 最大ゲージ
+    active: {           // 各必殺技の発動状態
+        timeStop: false,
+        slowMotion: false,
+        hint: false
+    },
+    cooldown: {         // クールダウン時間（ミリ秒）
+        timeStop: 10000,    // 時間停止は10秒間
+        slowMotion: 8000,   // スローモーションは8秒間
+        hint: 0             // ヒントは即座に消費
+    },
+    cooldownTimers: {   // クールダウンタイマーID
+        timeStop: null,
+        slowMotion: null,
+        hint: null
+    }
 };
 
 /**
@@ -41,6 +75,12 @@ function initGame() {
     gameState.combo = 0;
     gameState.exp = 0;
     gameState.maxExp = 6; // Phase 3: 初期値を調整 (10 → 6)
+
+    // 必殺技エリアを表示（ゲーム再開時）
+    const specialMovesContainer = document.querySelector('.special-moves-container');
+    if (specialMovesContainer) {
+        specialMovesContainer.style.display = 'flex';
+    }
 
     // UI更新
     updateUI();
@@ -66,13 +106,28 @@ function initGame() {
         gameState.settingsPanelInitialized = true;
     }
 
+    // 必殺技ボタンの初期化（初回のみ）
+    if (!gameState.specialMoveButtonsInitialized) {
+        initSpecialMoveButtons();
+        gameState.specialMoveButtonsInitialized = true;
+    }
+
     // デバッグパネルの初期化と表示制御
     initDebugPanel();
 
-    // 本番環境ではデバッグパネルを非表示
+    // DEBUG_MODEに応じてデバッグパネルの表示を制御
     const debugPanel = document.getElementById('debugPanel');
-    if (debugPanel) {
-        debugPanel.style.display = DEBUG_MODE ? 'block' : 'none';
+    const debugIconBtn = document.getElementById('openDebug');
+    if (debugPanel && debugIconBtn) {
+        if (DEBUG_MODE) {
+            // DEBUG_MODE有効: パネルは非表示、アイコンボタンを表示
+            debugPanel.classList.add('hidden');
+            debugIconBtn.style.display = 'flex';
+        } else {
+            // DEBUG_MODE無効: 両方非表示
+            debugPanel.style.display = 'none';
+            debugIconBtn.style.display = 'none';
+        }
     }
 
     if (DEBUG_MODE) console.log('✅ ゲーム開始！');
@@ -82,6 +137,18 @@ function initGame() {
  * 問題を生成
  */
 function generateQuestion() {
+    // 🔧 次の問題に移る際、すべての発動中の必殺技を強制リセット
+    // （正解時に必殺技が発動中の場合の対策）
+    ['hint', 'timeStop', 'slowMotion'].forEach(moveType => {
+        if (specialMoveState.active[moveType]) {
+            if (DEBUG_MODE) console.log(`🔄 次問題生成時: ${moveType}を強制リセット`);
+            resetSpecialMove(moveType);
+        }
+    });
+
+    // 🔧 ボタンアニメーションを停止し、位置をリセット
+    stopAllButtonAnimations();
+
     // レベルに応じた数値範囲を決定
     let maxNumber = 10;
     if (gameState.level >= 11) {
@@ -112,6 +179,9 @@ function generateQuestion() {
         // レベルに応じたボタンアニメーション開始
         if (DEBUG_MODE) console.log('🎬 ボタンアニメーション開始: Lv' + gameState.level);
         animateButtonsByLevel(gameState.level);
+
+        // タイマー開始（時間制限モード有効時）
+        startTimer();
     }, 800);
 }
 
@@ -197,6 +267,9 @@ function handleAnswer(answer, button) {
     if (gameState.isAnswering) return;
     gameState.isAnswering = true;
 
+    // タイマー停止
+    stopTimer();
+
     // ボタンクリック音を再生
     playButtonSound();
 
@@ -241,6 +314,9 @@ function handleCorrectAnswer(button) {
     const expGain = calculateExpGain(gameState.combo);
     gameState.exp += expGain;
     if (DEBUG_MODE) console.log('⭐ 経験値 +' + expGain + ' (コンボ' + gameState.combo + 'ボーナス) (' + gameState.exp + '/' + gameState.maxExp + ')');
+
+    // 必殺技ゲージ増加（コンボに応じて）
+    chargeSpecialGauge(gameState.combo);
 
     // エフェクト再生
     playCorrectEffect(button, gameState.combo);
@@ -394,6 +470,12 @@ function gameComplete() {
         gameState.drumButtonsInitialized = true;
     }
 
+    // 必殺技エリアを非表示（クリア画面をすっきりさせる）
+    const specialMovesContainer = document.querySelector('.special-moves-container');
+    if (specialMovesContainer) {
+        specialMovesContainer.style.display = 'none';
+    }
+
     // クリアエフェクト再生
     playGameCompleteEffect();
 }
@@ -462,15 +544,21 @@ function updateTipMessage() {
 function initDebugPanel() {
     if (DEBUG_MODE) console.log('🛠️ デバッグパネル初期化');
 
-    // 表示/非表示トグル
-    const toggleButton = document.getElementById('toggleDebug');
-    const debugContent = document.querySelector('.debug-content');
-    let isVisible = true;
+    // 開閉ボタンのイベントリスナー
+    const openButton = document.getElementById('openDebug');
+    const closeButton = document.getElementById('closeDebug');
+    const debugPanel = document.getElementById('debugPanel');
 
-    toggleButton.addEventListener('click', () => {
-        isVisible = !isVisible;
-        debugContent.classList.toggle('hidden');
-        if (DEBUG_MODE) console.log('デバッグパネル:', isVisible ? '表示' : '非表示');
+    openButton.addEventListener('click', () => {
+        debugPanel.classList.remove('hidden');
+        openButton.style.display = 'none';
+        if (DEBUG_MODE) console.log('デバッグパネル: 表示');
+    });
+
+    closeButton.addEventListener('click', () => {
+        debugPanel.classList.add('hidden');
+        openButton.style.display = 'flex';
+        if (DEBUG_MODE) console.log('デバッグパネル: 非表示');
     });
 
     // レベル選択ボタンのイベントリスナー
@@ -520,6 +608,646 @@ function updateDebugPanel() {
             button.classList.remove('active');
         }
     });
+}
+
+// ========================================
+// タイマー管理システム（必殺技の時間停止に対応）
+// ========================================
+
+/**
+ * タイマーを開始
+ */
+function startTimer() {
+    if (!gameState.timeLimitEnabled) return;
+
+    // レベルに応じた制限時間を設定（Lv1-10: 10秒, Lv11-20: 8秒）
+    timerState.maxTime = gameState.level <= 10 ? 10000 : 8000;
+    timerState.currentTime = timerState.maxTime;
+    timerState.startTimestamp = performance.now();
+    timerState.isRunning = true;
+    timerState.isPaused = false;
+    timerState.pausedTime = 0; // 前の問題のpausedTimeをリセット
+
+    if (DEBUG_MODE) console.log('⏱️ タイマー開始:', timerState.maxTime / 1000 + '秒');
+
+    updateTimer();
+}
+
+/**
+ * タイマーを一時停止（必殺技用）
+ */
+function pauseTimer() {
+    if (!timerState.isRunning || timerState.isPaused) return;
+
+    timerState.isPaused = true;
+    timerState.pausedTime = timerState.currentTime;
+
+    if (timerState.animationId) {
+        cancelAnimationFrame(timerState.animationId);
+        timerState.animationId = null;
+    }
+
+    if (DEBUG_MODE) console.log('⏸️ タイマー一時停止:', timerState.currentTime / 1000 + '秒残り');
+}
+
+/**
+ * タイマーを再開（必殺技解除時）
+ */
+function resumeTimer() {
+    if (!timerState.isRunning || !timerState.isPaused) return;
+
+    timerState.isPaused = false;
+    timerState.startTimestamp = performance.now();
+    timerState.currentTime = timerState.pausedTime;
+
+    if (DEBUG_MODE) console.log('▶️ タイマー再開:', timerState.currentTime / 1000 + '秒残り');
+
+    updateTimer();
+}
+
+/**
+ * タイマーを停止
+ */
+function stopTimer() {
+    timerState.isRunning = false;
+    timerState.isPaused = false;
+
+    if (timerState.animationId) {
+        cancelAnimationFrame(timerState.animationId);
+        timerState.animationId = null;
+    }
+
+    if (DEBUG_MODE) console.log('⏹️ タイマー停止');
+}
+
+/**
+ * タイマーをリセット
+ */
+function resetTimer() {
+    stopTimer();
+    timerState.currentTime = 0;
+    updateTimerUI();
+}
+
+/**
+ * タイマー更新（requestAnimationFrame）
+ */
+function updateTimer() {
+    if (!timerState.isRunning || timerState.isPaused) return;
+
+    const now = performance.now();
+    let elapsed = now - timerState.startTimestamp;
+
+    // スローモーション中は時間の進み方を0.3倍速に
+    if (specialMoveState.active.slowMotion) {
+        elapsed *= 0.3;
+    }
+
+    timerState.currentTime = Math.max(0, timerState.pausedTime > 0 ? timerState.pausedTime - elapsed : timerState.maxTime - elapsed);
+
+    // UI更新
+    updateTimerUI();
+
+    // 時間切れチェック
+    if (timerState.currentTime <= 0) {
+        onTimeUp();
+        return;
+    }
+
+    // 次フレーム
+    timerState.animationId = requestAnimationFrame(updateTimer);
+}
+
+/**
+ * タイマーUI更新
+ */
+function updateTimerUI() {
+    const timerBar = document.getElementById('timerBar');
+    const timerText = document.getElementById('timerText');
+
+    if (!timerBar || !timerText) return;
+
+    const percentage = (timerState.currentTime / timerState.maxTime) * 100;
+    const seconds = (timerState.currentTime / 1000).toFixed(1);
+
+    timerBar.style.width = percentage + '%';
+    timerText.textContent = seconds + 's';
+
+    // 残り時間に応じて色変化
+    timerBar.classList.remove('timer-low', 'timer-critical');
+    if (percentage <= 20) {
+        timerBar.classList.add('timer-critical');
+    } else if (percentage <= 50) {
+        timerBar.classList.add('timer-low');
+    }
+}
+
+/**
+ * 時間切れ時の処理
+ */
+function onTimeUp() {
+    if (DEBUG_MODE) console.log('⏰ 時間切れ！');
+
+    stopTimer();
+
+    // 不正解と同じ処理
+    gameState.combo = 0;
+    playIncorrectSound();
+
+    // フラッシュエフェクト
+    gsap.to('.game-main', {
+        backgroundColor: 'rgba(255, 0, 0, 0.3)',
+        duration: 0.2,
+        yoyo: true,
+        repeat: 1,
+        onComplete: () => {
+            gsap.set('.game-main', { backgroundColor: 'transparent' });
+        }
+    });
+
+    // 次の問題へ
+    setTimeout(() => {
+        generateQuestion();
+    }, 800);
+}
+
+// ========================================
+// 必殺技システム
+// ========================================
+
+/**
+ * 必殺技ゲージをチャージ
+ * @param {number} combo - 現在のコンボ数
+ */
+function chargeSpecialGauge(combo) {
+    // コンボに応じてゲージ増加（コンボが高いほど多く増える）
+    const chargeAmount = Math.min(5 + combo * 2, 20); // 5-20の範囲
+    specialMoveState.gauge = Math.min(specialMoveState.gauge + chargeAmount, specialMoveState.maxGauge);
+
+    if (DEBUG_MODE) console.log('⚡ ゲージ +' + chargeAmount + ' (' + specialMoveState.gauge + '/' + specialMoveState.maxGauge + ')');
+
+    updateSpecialGaugeUI();
+
+    // ゲージが溜まった時のエフェクト
+    if (specialMoveState.gauge === specialMoveState.maxGauge) {
+        playGaugeFullEffect();
+    }
+}
+
+/**
+ * 必殺技ゲージUI更新
+ */
+function updateSpecialGaugeUI() {
+    const gaugeFill = document.querySelector('.special-gauge-fill');
+    const gaugeText = document.getElementById('specialGaugeText');
+
+    if (gaugeFill) {
+        gaugeFill.style.width = specialMoveState.gauge + '%';
+    }
+    if (gaugeText) {
+        gaugeText.textContent = Math.floor(specialMoveState.gauge) + '%';
+    }
+
+    // ボタンの有効/無効を更新
+    updateSpecialButtons();
+}
+
+/**
+ * 必殺技ボタンの有効/無効を更新
+ */
+function updateSpecialButtons() {
+    const timeStopBtn = document.getElementById('timeStopBtn');
+    const slowMotionBtn = document.getElementById('slowMotionBtn');
+    const hintBtn = document.getElementById('hintBtn');
+
+    // 時間停止: 20以上で使用可能
+    if (timeStopBtn) {
+        timeStopBtn.disabled = specialMoveState.gauge < 20 || specialMoveState.active.timeStop;
+    }
+
+    // スローモーション: 15以上で使用可能
+    if (slowMotionBtn) {
+        slowMotionBtn.disabled = specialMoveState.gauge < 15 || specialMoveState.active.slowMotion;
+    }
+
+    // ヒント: 5以上で使用可能
+    if (hintBtn) {
+        hintBtn.disabled = specialMoveState.gauge < 5 || specialMoveState.active.hint;
+    }
+}
+
+/**
+ * ゲージ満タン時のエフェクト
+ */
+function playGaugeFullEffect() {
+    const gaugeContainer = document.querySelector('.special-gauge-container');
+
+    // 画面フラッシュ
+    gsap.to('.game-main', {
+        backgroundColor: 'rgba(255, 217, 61, 0.3)',
+        duration: 0.15,
+        yoyo: true,
+        repeat: 3
+    });
+
+    // ゲージコンテナを強調
+    gsap.timeline()
+        .to(gaugeContainer, {
+            scale: 1.1,
+            duration: 0.2,
+            ease: 'back.out(2)'
+        })
+        .to(gaugeContainer, {
+            scale: 1,
+            duration: 0.3,
+            ease: 'elastic.out(1, 0.5)'
+        });
+
+    if (DEBUG_MODE) console.log('⚡⚡⚡ ゲージMAX！必殺技使用可能！');
+}
+
+/**
+ * 必殺技名を画面いっぱいに表示
+ * @param {string} moveName - 必殺技名
+ * @param {string} color - テキストカラー
+ */
+function showSpecialMoveName(moveName, color) {
+    // 背景オーバーレイを作成（コントラスト向上）
+    const overlay = document.createElement('div');
+    overlay.className = 'special-move-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 9999;
+        pointer-events: none;
+    `;
+    document.body.appendChild(overlay);
+
+    // 必殺技名のテキスト表示
+    const nameDisplay = document.createElement('div');
+    nameDisplay.className = 'special-move-name-display';
+    nameDisplay.textContent = moveName;
+    nameDisplay.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 8rem;
+        font-weight: bold;
+        color: ${color};
+        text-shadow: 0 0 40px ${color}, 0 0 80px ${color}, 0 0 120px ${color};
+        -webkit-text-stroke: 3px rgba(0, 0, 0, 0.8);
+        z-index: 10000;
+        text-align: center;
+        pointer-events: none;
+        white-space: nowrap;
+        letter-spacing: 0.5rem;
+    `;
+    document.body.appendChild(nameDisplay);
+
+    // 背景のフェードイン
+    gsap.fromTo(overlay,
+        { opacity: 0 },
+        { opacity: 1, duration: 0.2, ease: 'power2.out' }
+    );
+
+    // 派手な登場アニメーション
+    gsap.fromTo(nameDisplay,
+        { scale: 0, rotation: -10, opacity: 0 },
+        {
+            scale: 1,
+            rotation: 0,
+            opacity: 1,
+            duration: 0.3,
+            ease: 'back.out(2)'
+        }
+    );
+
+    // 1秒後にフェードアウト
+    gsap.to(nameDisplay, {
+        scale: 1.2,
+        opacity: 0,
+        duration: 0.5,
+        delay: 1,
+        ease: 'power2.in',
+        onComplete: () => nameDisplay.remove()
+    });
+
+    // 背景も同時にフェードアウト
+    gsap.to(overlay, {
+        opacity: 0,
+        duration: 0.5,
+        delay: 1,
+        ease: 'power2.in',
+        onComplete: () => overlay.remove()
+    });
+}
+
+/**
+ * 必殺技発動の共通処理
+ * @param {string} moveType - 必殺技タイプ ('timeStop', 'slowMotion', 'hint')
+ * @param {number} cost - 消費ゲージ
+ * @param {Function} activateFunc - 発動処理関数
+ */
+function activateSpecialMove(moveType, cost, activateFunc) {
+    // ゲージが足りない場合は発動しない
+    if (specialMoveState.gauge < cost) {
+        if (DEBUG_MODE) console.log('⚠️ ゲージ不足:', specialMoveState.gauge + '/' + cost);
+        return;
+    }
+
+    // 既に発動中の場合は発動しない
+    if (specialMoveState.active[moveType]) {
+        if (DEBUG_MODE) console.log('⚠️ 既に発動中:', moveType);
+        return;
+    }
+
+    // ゲージ消費
+    specialMoveState.gauge -= cost;
+    updateSpecialGaugeUI();
+
+    // 発動状態にする
+    specialMoveState.active[moveType] = true;
+
+    // ボタンにactiveクラスを追加
+    const button = document.querySelector(`[data-move="${moveType}"]`);
+    if (button) {
+        button.classList.add('active');
+    }
+
+    if (DEBUG_MODE) console.log('🌟 必殺技発動!', moveType, '消費:', cost);
+
+    // 発動処理実行
+    activateFunc();
+}
+
+/**
+ * 必殺技発動後の状態リセット（共通処理）
+ * @param {string} moveType - 必殺技タイプ ('timeStop', 'slowMotion', 'hint')
+ */
+function resetSpecialMove(moveType) {
+    if (DEBUG_MODE) console.log('🔄 必殺技リセット開始:', moveType);
+    if (DEBUG_MODE) console.log('  - 現在のactive状態:', specialMoveState.active[moveType]);
+    if (DEBUG_MODE) console.log('  - 現在のゲージ:', specialMoveState.gauge);
+
+    // 1. 発動状態をfalseに
+    specialMoveState.active[moveType] = false;
+    if (DEBUG_MODE) console.log('  - active状態をfalseに設定');
+
+    // 2. ボタンのactiveクラスを削除
+    const button = document.querySelector(`[data-move="${moveType}"]`);
+    if (button) {
+        button.classList.remove('active');
+        if (DEBUG_MODE) console.log('  - activeクラス削除完了');
+    }
+
+    // 3. ボタンの有効/無効を更新
+    updateSpecialButtons();
+    if (DEBUG_MODE) console.log('  - updateSpecialButtons()実行完了');
+
+    // 4. 必殺技固有のリセット処理
+    switch (moveType) {
+        case 'timeStop':
+            // タイマーとボタンアニメーションを再開
+            resumeTimer();
+            resumeButtonAnimations();
+            // BGMを再開（レベルに応じて）
+            restoreBGM();
+            break;
+
+        case 'slowMotion':
+            // タイムスケールを戻す
+            gsap.globalTimeline.timeScale(1);
+            // スローモーションBGMを停止して通常BGMに戻す
+            stopSlowMotionBGM();
+            restoreBGM();
+            break;
+
+        case 'hint':
+            // ヒントは特別なリセット処理なし
+            break;
+    }
+
+    if (DEBUG_MODE) console.log('✅ 必殺技リセット完了:', moveType);
+    if (DEBUG_MODE) console.log('  - リセット後のactive状態:', specialMoveState.active[moveType]);
+
+    // リセット後のボタン状態を確認
+    if (DEBUG_MODE && button) {
+        console.log('  - リセット後のボタンdisabled:', button.disabled);
+        console.log('  - リセット後のボタンactiveクラス:', button.classList.contains('active'));
+    }
+}
+
+/**
+ * BGMを適切な状態に復元
+ */
+function restoreBGM() {
+    // 他の必殺技が発動中でない場合のみBGMを再開
+    if (!specialMoveState.active.timeStop && !specialMoveState.active.slowMotion) {
+        // レベルに応じたBGMを再生
+        if (gameState.level >= 11) {
+            // Lv11以上の場合、BGMが再生中かチェック
+            const lv11_20BGMs = audioCache.bgm.lv11_20;
+            const isAnyBGMPlaying = lv11_20BGMs.some(bgm => !bgm.paused);
+
+            if (!isAnyBGMPlaying) {
+                playLv11_20BGM();
+                if (DEBUG_MODE) console.log('🎵 BGM再開 (Lv11-20)');
+            }
+        }
+        // Lv1-10ではBGMなし
+    }
+}
+
+/**
+ * ⏸️ 時間停止 発動
+ */
+function activateTimeStop() {
+    activateSpecialMove('timeStop', 20, () => {
+        // ド派手な発動エフェクト
+        const gameMain = document.querySelector('.game-main');
+
+        // 画面全体に青白いフラッシュ
+        gsap.timeline()
+            .to(gameMain, {
+                backgroundColor: 'rgba(100, 200, 255, 0.8)',
+                duration: 0.1
+            })
+            .to(gameMain, {
+                backgroundColor: 'rgba(100, 200, 255, 0.2)',
+                duration: 0.3
+            });
+
+        // 必殺技名を画面いっぱいに表示（1秒で消える）
+        showSpecialMoveName('ザ・ワールド！！', '#00d4ff');
+
+        // サウンド再生
+        playTimeStopSound();
+
+        // タイマーとボタンアニメーションを一時停止
+        pauseTimer();
+        pauseButtonAnimations();
+
+        // BGMを停止
+        stopAllBGM();
+
+        // 10秒後に解除
+        specialMoveState.cooldownTimers.timeStop = setTimeout(() => {
+            resetSpecialMove('timeStop');
+        }, 10000);
+    });
+}
+
+/**
+ * 🐌 スローモーション 発動
+ */
+function activateSlowMotion() {
+    activateSpecialMove('slowMotion', 15, () => {
+        // ド派手な発動エフェクト
+        const gameMain = document.querySelector('.game-main');
+
+        // 画面全体に紫のフラッシュ
+        gsap.timeline()
+            .to(gameMain, {
+                backgroundColor: 'rgba(150, 100, 255, 0.6)',
+                duration: 0.1
+            })
+            .to(gameMain, {
+                backgroundColor: 'rgba(150, 100, 255, 0.15)',
+                duration: 0.3
+            });
+
+        // 必殺技名を画面いっぱいに表示（1秒で消える）
+        showSpecialMoveName('時の加速', '#9b59b6');
+
+        // サウンド再生
+        playSlowMotionSound();
+
+        // 通常BGMを停止してスローモーション用BGMに切り替え
+        stopAllBGM();
+        playSlowMotionBGM();
+
+        // GSAPのグローバルタイムスケールを遅くする
+        gsap.globalTimeline.timeScale(0.3);
+
+        // 8秒後に解除
+        specialMoveState.cooldownTimers.slowMotion = setTimeout(() => {
+            resetSpecialMove('slowMotion');
+        }, 8000);
+    });
+}
+
+/**
+ * 💡 ヒント 発動
+ */
+function activateHint() {
+    activateSpecialMove('hint', 5, () => {
+        // ド派手な発動エフェクト
+        const gameMain = document.querySelector('.game-main');
+
+        // 画面全体に黄色いフラッシュ
+        gsap.timeline()
+            .to(gameMain, {
+                backgroundColor: 'rgba(255, 215, 0, 0.6)',
+                duration: 0.1
+            })
+            .to(gameMain, {
+                backgroundColor: 'transparent',
+                duration: 0.3
+            });
+
+        // 必殺技名を画面いっぱいに表示（1秒で消える）
+        showSpecialMoveName('星の啓示', '#ffd700');
+
+        // サウンド再生
+        playHintSound();
+
+        // 正解ボタンを探す
+        const correctAnswer = gameState.currentQuestion.answer;
+        const answerButtons = document.querySelectorAll('.answer-button');
+        let correctButton = null;
+
+        answerButtons.forEach(button => {
+            const buttonAnswer = parseInt(button.dataset.answer);
+            if (buttonAnswer === correctAnswer) {
+                correctButton = button;
+            }
+        });
+
+        if (correctButton) {
+            // 正解ボタンをキラキラさせる
+            correctButton.style.position = 'relative';
+            correctButton.style.zIndex = '1000';
+
+            // グロー効果
+            gsap.timeline()
+                .to(correctButton, {
+                    boxShadow: '0 0 30px 10px rgba(255, 215, 0, 1), 0 0 60px 20px rgba(255, 215, 0, 0.8)',
+                    scale: 1.15,
+                    duration: 0.3,
+                    ease: 'back.out(2)'
+                })
+                .to(correctButton, {
+                    boxShadow: '0 0 20px 5px rgba(255, 215, 0, 0.8), 0 0 40px 10px rgba(255, 215, 0, 0.6)',
+                    duration: 0.5,
+                    yoyo: true,
+                    repeat: 5
+                })
+                .to(correctButton, {
+                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                    scale: 1,
+                    duration: 0.3
+                });
+
+            // キラキラパーティクル
+            for (let i = 0; i < 20; i++) {
+                const buttonRect = correctButton.getBoundingClientRect();
+                const centerX = buttonRect.left + buttonRect.width / 2;
+                const centerY = buttonRect.top + buttonRect.height / 2;
+                createParticle(centerX, centerY, '#ffd700');
+            }
+        }
+
+        // ヒントは即座にリセット（エフェクトは続くが、次のヒントを使えるように）
+        // エフェクトとactive状態は独立して管理
+        setTimeout(() => {
+            resetSpecialMove('hint');
+            if (DEBUG_MODE) console.log('💡 ヒントリセット完了');
+        }, 100);  // エフェクト開始直後にリセット
+    });
+}
+
+/**
+ * 必殺技ボタンの初期化
+ */
+function initSpecialMoveButtons() {
+    const timeStopBtn = document.getElementById('timeStopBtn');
+    const slowMotionBtn = document.getElementById('slowMotionBtn');
+    const hintBtn = document.getElementById('hintBtn');
+
+    if (timeStopBtn) {
+        timeStopBtn.addEventListener('click', () => {
+            activateTimeStop();
+        });
+    }
+
+    if (slowMotionBtn) {
+        slowMotionBtn.addEventListener('click', () => {
+            activateSlowMotion();
+        });
+    }
+
+    if (hintBtn) {
+        hintBtn.addEventListener('click', () => {
+            activateHint();
+        });
+    }
+
+    if (DEBUG_MODE) console.log('⚡ 必殺技ボタン初期化完了');
 }
 
 /**
@@ -572,6 +1300,27 @@ function initSettingsPanel() {
         const volume = parseInt(e.target.value) / 100;
         setEffectVolume(volume);
         effectVolumeValue.textContent = e.target.value + '%';
+    });
+
+    // 時間制限ON/OFFボタン
+    const timeLimitToggleBtn = document.getElementById('timeLimitEnabled');
+    timeLimitToggleBtn.addEventListener('click', () => {
+        gameState.timeLimitEnabled = !gameState.timeLimitEnabled;
+        timeLimitToggleBtn.textContent = gameState.timeLimitEnabled ? 'ON' : 'OFF';
+        timeLimitToggleBtn.classList.toggle('active', gameState.timeLimitEnabled);
+
+        // タイマーコンテナの表示/非表示
+        const timerContainer = document.getElementById('timerContainer');
+        if (timerContainer) {
+            timerContainer.style.display = gameState.timeLimitEnabled ? 'flex' : 'none';
+        }
+
+        if (DEBUG_MODE) console.log('時間制限:', gameState.timeLimitEnabled ? 'ON' : 'OFF');
+
+        // 現在タイマーが動作中ならリセット
+        if (!gameState.timeLimitEnabled && timerState.isRunning) {
+            resetTimer();
+        }
     });
 }
 
