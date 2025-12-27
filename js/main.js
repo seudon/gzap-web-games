@@ -144,6 +144,9 @@ function generateQuestion() {
         resetSpecialMove('hint');
     }
 
+    // 🔧 ボタンアニメーションを停止し、位置をリセット
+    stopAllButtonAnimations();
+
     // レベルに応じた数値範囲を決定
     let maxNumber = 10;
     if (gameState.level >= 11) {
@@ -621,6 +624,7 @@ function startTimer() {
     timerState.startTimestamp = performance.now();
     timerState.isRunning = true;
     timerState.isPaused = false;
+    timerState.pausedTime = 0; // 前の問題のpausedTimeをリセット
 
     if (DEBUG_MODE) console.log('⏱️ タイマー開始:', timerState.maxTime / 1000 + '秒');
 
