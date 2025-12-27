@@ -69,10 +69,19 @@ function initGame() {
     // デバッグパネルの初期化と表示制御
     initDebugPanel();
 
-    // 本番環境ではデバッグパネルを非表示
+    // DEBUG_MODEに応じてデバッグパネルの表示を制御
     const debugPanel = document.getElementById('debugPanel');
-    if (debugPanel) {
-        debugPanel.style.display = DEBUG_MODE ? 'block' : 'none';
+    const debugIconBtn = document.getElementById('openDebug');
+    if (debugPanel && debugIconBtn) {
+        if (DEBUG_MODE) {
+            // DEBUG_MODE有効: パネルは非表示、アイコンボタンを表示
+            debugPanel.classList.add('hidden');
+            debugIconBtn.style.display = 'flex';
+        } else {
+            // DEBUG_MODE無効: 両方非表示
+            debugPanel.style.display = 'none';
+            debugIconBtn.style.display = 'none';
+        }
     }
 
     if (DEBUG_MODE) console.log('✅ ゲーム開始！');
@@ -462,15 +471,21 @@ function updateTipMessage() {
 function initDebugPanel() {
     if (DEBUG_MODE) console.log('🛠️ デバッグパネル初期化');
 
-    // 表示/非表示トグル
-    const toggleButton = document.getElementById('toggleDebug');
-    const debugContent = document.querySelector('.debug-content');
-    let isVisible = true;
+    // 開閉ボタンのイベントリスナー
+    const openButton = document.getElementById('openDebug');
+    const closeButton = document.getElementById('closeDebug');
+    const debugPanel = document.getElementById('debugPanel');
 
-    toggleButton.addEventListener('click', () => {
-        isVisible = !isVisible;
-        debugContent.classList.toggle('hidden');
-        if (DEBUG_MODE) console.log('デバッグパネル:', isVisible ? '表示' : '非表示');
+    openButton.addEventListener('click', () => {
+        debugPanel.classList.remove('hidden');
+        openButton.style.display = 'none';
+        if (DEBUG_MODE) console.log('デバッグパネル: 表示');
+    });
+
+    closeButton.addEventListener('click', () => {
+        debugPanel.classList.add('hidden');
+        openButton.style.display = 'flex';
+        if (DEBUG_MODE) console.log('デバッグパネル: 非表示');
     });
 
     // レベル選択ボタンのイベントリスナー
