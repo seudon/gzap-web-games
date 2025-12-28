@@ -5,6 +5,75 @@
 // 注意: このファイルは main.js の DEBUG_MODE 定数を使用します
 // main.js が先に読み込まれる必要があります
 
+// ========================================
+// アニメーション定数（マジックナンバーの定義）
+// ========================================
+const ANIMATION_CONSTANTS = {
+    // モバイル対応
+    MOBILE_BREAKPOINT: 768,              // モバイル判定の画面幅（px）
+    MOBILE_DISTANCE_MULTIPLIER: 0.7,     // モバイル版の移動距離倍率
+    MOBILE_MIN_SCALE_LV11_15: 0.88,      // モバイル版の最小ボタンサイズ (Lv11-15)
+    MOBILE_MIN_SCALE_LV16_20: 0.85,      // モバイル版の最小ボタンサイズ (Lv16-20)
+
+    // コンボ別パーティクル数
+    PARTICLES_COMBO_1: 10,
+    PARTICLES_COMBO_2_3: 20,
+    PARTICLES_COMBO_4_5: 30,
+    PARTICLES_COMBO_6_7: 45,
+    PARTICLES_COMBO_8_10: 70,
+    PARTICLES_COMBO_11_15: 90,
+    PARTICLES_COMBO_16_20: 110,
+    PARTICLES_COMBO_21_PLUS: 80,         // 最適化版
+
+    // コンボ別追加エフェクトパーティクル数
+    SPIRAL_PARTICLES_COMBO_4_5: 15,
+    SPIRAL_PARTICLES_COMBO_6_7: 25,
+    SPIRAL_PARTICLES_COMBO_8_10: 25,
+    SPIRAL_PARTICLES_COMBO_11_15: 30,
+    SPIRAL_PARTICLES_COMBO_16_20: 35,
+    SPIRAL_PARTICLES_COMBO_21_PLUS: 25,
+
+    HEART_PARTICLES_COMBO_8_10: 15,
+    HEART_PARTICLES_COMBO_11_15: 20,
+    HEART_PARTICLES_COMBO_16_20: 25,
+    HEART_PARTICLES_COMBO_21_PLUS: 20,
+
+    EXPLOSION_PARTICLES_COMBO_16_20: 25,
+    EXPLOSION_PARTICLES_COMBO_21_PLUS: 20,
+
+    // コンボ別画面フラッシュ強度
+    FLASH_INTENSITY_COMBO_2_3: 0.15,
+    FLASH_INTENSITY_COMBO_4_5: 0.25,
+    FLASH_INTENSITY_COMBO_6_7: 0.35,
+    FLASH_INTENSITY_COMBO_8_10: 0.5,
+    FLASH_INTENSITY_COMBO_11_15: 0.7,
+    FLASH_INTENSITY_COMBO_16_20: 0.85,
+    FLASH_INTENSITY_COMBO_21_PLUS: 0.85,
+
+    // コンボ別リング数
+    RAINBOW_RINGS_COMBO_4_5: 1,
+    RAINBOW_RINGS_COMBO_6_7: 2,
+    RAINBOW_RINGS_COMBO_8_10: 3,
+    RAINBOW_RINGS_COMBO_11_15: 4,
+    RAINBOW_RINGS_COMBO_16_20: 5,
+    RAINBOW_RINGS_COMBO_21_PLUS: 5,
+
+    // コンボ別星型爆発の頂点数
+    STAR_BURST_POINTS_COMBO_11_15: 5,
+    STAR_BURST_POINTS_COMBO_16_20: 7,
+    STAR_BURST_POINTS_COMBO_21_PLUS: 8,
+
+    // コンボ別画面シェイク強度（ピクセル）
+    SHAKE_INTENSITY_COMBO_8_10: 6,
+    SHAKE_INTENSITY_COMBO_11_15: 10,
+    SHAKE_INTENSITY_COMBO_16_20: 14,
+    SHAKE_INTENSITY_COMBO_21_PLUS: 15,
+
+    // その他エフェクト
+    FIREWORK_PARTICLE_COUNT: 20,         // 花火のパーティクル数（最適化版）
+    CONFETTI_COUNT: 100                  // 紙吹雪の数
+};
+
 // 🔧 現在のアニメーションレベルを管理（グローバル変数）
 let currentAnimationLevel = null;
 
@@ -175,9 +244,9 @@ function animateButtonsByLevel(level) {
     if (DEBUG_MODE) console.log('  現在のアニメーションレベルを設定:', currentAnimationLevel);
 
     // 📱 スマホサイズ判定（タップしやすさの改善）
-    const isMobile = window.innerWidth <= 768;
-    const distanceMultiplier = isMobile ? 0.7 : 1; // スマホ版では移動距離を70%に抑制
-    if (DEBUG_MODE && isMobile) console.log('📱 モバイル版: 移動距離を70%に抑制');
+    const isMobile = window.innerWidth <= ANIMATION_CONSTANTS.MOBILE_BREAKPOINT;
+    const distanceMultiplier = isMobile ? ANIMATION_CONSTANTS.MOBILE_DISTANCE_MULTIPLIER : 1;
+    if (DEBUG_MODE && isMobile) console.log('📱 モバイル版: 移動距離を' + (ANIMATION_CONSTANTS.MOBILE_DISTANCE_MULTIPLIER * 100) + '%に抑制');
 
     // 🔧 時間停止中はアニメーションを開始しない
     if (isTimeStopActive) {
@@ -516,8 +585,10 @@ function animateButtonsByLevel(level) {
             const targetLevel = level;
             // レベルに応じてボタンサイズを段階的に縮小
             let buttonScale = 1.0 - (level - 10) * 0.03; // Lv11: 0.97, Lv12: 0.94, ..., Lv15: 0.85
-            // 📱 スマホ版: 最小サイズを0.88に制限（タップしやすく）
-            if (isMobile && buttonScale < 0.88) buttonScale = 0.88;
+            // 📱 スマホ版: 最小サイズを制限（タップしやすく）
+            if (isMobile && buttonScale < ANIMATION_CONSTANTS.MOBILE_MIN_SCALE_LV11_15) {
+                buttonScale = ANIMATION_CONSTANTS.MOBILE_MIN_SCALE_LV11_15;
+            }
             if (DEBUG_MODE) console.log('  Lv' + level + ' ボタンサイズ: ' + buttonScale.toFixed(2));
 
             const complexRandomMove = () => {
@@ -548,8 +619,10 @@ function animateButtonsByLevel(level) {
             const targetLevel = level;
             // レベルに応じてボタンサイズをさらに縮小
             let buttonScale = 0.85 - (level - 15) * 0.03; // Lv16: 0.82, Lv17: 0.79, ..., Lv20: 0.70
-            // 📱 スマホ版: 最小サイズを0.85に制限（タップしやすく）
-            if (isMobile && buttonScale < 0.85) buttonScale = 0.85;
+            // 📱 スマホ版: 最小サイズを制限（タップしやすく）
+            if (isMobile && buttonScale < ANIMATION_CONSTANTS.MOBILE_MIN_SCALE_LV16_20) {
+                buttonScale = ANIMATION_CONSTANTS.MOBILE_MIN_SCALE_LV16_20;
+            }
             if (DEBUG_MODE) console.log('  Lv' + level + ' ボタンサイズ: ' + buttonScale.toFixed(2));
 
             const hyperComplexMove = () => {
@@ -682,7 +755,7 @@ function playCorrectEffect(button, combo) {
             repeat: 1,
             ease: 'power2.out'
         });
-        createParticles(x, y, 10, 'small');
+        createParticles(x, y, ANIMATION_CONSTANTS.PARTICLES_COMBO_1, 'small');
 
     } else if (combo <= 3) {
         // コンボ2-3: パーティクル増加
@@ -694,8 +767,8 @@ function playCorrectEffect(button, combo) {
             repeat: 1,
             ease: 'back.out(1.7)'
         });
-        createParticles(x, y, 20, 'small');
-        flashScreen(0.15);
+        createParticles(x, y, ANIMATION_CONSTANTS.PARTICLES_COMBO_2_3, 'small');
+        flashScreen(ANIMATION_CONSTANTS.FLASH_INTENSITY_COMBO_2_3);
 
     } else if (combo <= 5) {
         // コンボ4-5: 中サイズパーティクル + 光の輪
@@ -707,9 +780,9 @@ function playCorrectEffect(button, combo) {
             repeat: 1,
             ease: 'back.out(1.7)'
         });
-        createParticles(x, y, 30, 'medium');
-        flashScreen(0.25);
-        createRainbowRing(x, y, 1);
+        createParticles(x, y, ANIMATION_CONSTANTS.PARTICLES_COMBO_4_5, 'medium');
+        flashScreen(ANIMATION_CONSTANTS.FLASH_INTENSITY_COMBO_4_5);
+        createRainbowRing(x, y, ANIMATION_CONSTANTS.RAINBOW_RINGS_COMBO_4_5);
 
     } else if (combo <= 7) {
         // コンボ6-7: 大サイズ + グロー + 波紋
@@ -721,11 +794,11 @@ function playCorrectEffect(button, combo) {
             repeat: 1,
             ease: 'back.out(1.7)'
         });
-        createParticles(x, y, 45, 'large');
-        createSpiralParticles(x, y, 15);
-        flashScreen(0.35);
+        createParticles(x, y, ANIMATION_CONSTANTS.PARTICLES_COMBO_6_7, 'large');
+        createSpiralParticles(x, y, ANIMATION_CONSTANTS.SPIRAL_PARTICLES_COMBO_4_5);
+        flashScreen(ANIMATION_CONSTANTS.FLASH_INTENSITY_COMBO_6_7);
         createRadialGlow(x, y);
-        createRainbowRing(x, y, 2);
+        createRainbowRing(x, y, ANIMATION_CONSTANTS.RAINBOW_RINGS_COMBO_6_7);
 
     } else if (combo <= 10) {
         // コンボ8-10: 超派手 + 波紋 + 画面シェイク + テキスト
@@ -737,15 +810,15 @@ function playCorrectEffect(button, combo) {
             repeat: 1,
             ease: 'back.out(1.7)'
         });
-        createParticles(x, y, 70, 'large');
-        createSpiralParticles(x, y, 25);
-        createHeartParticles(x, y, 15);
-        flashScreen(0.5);
+        createParticles(x, y, ANIMATION_CONSTANTS.PARTICLES_COMBO_8_10, 'large');
+        createSpiralParticles(x, y, ANIMATION_CONSTANTS.SPIRAL_PARTICLES_COMBO_6_7);
+        createHeartParticles(x, y, ANIMATION_CONSTANTS.HEART_PARTICLES_COMBO_8_10);
+        flashScreen(ANIMATION_CONSTANTS.FLASH_INTENSITY_COMBO_8_10);
         createRadialGlow(x, y);
-        createRainbowRing(x, y, 3);
+        createRainbowRing(x, y, ANIMATION_CONSTANTS.RAINBOW_RINGS_COMBO_8_10);
         createColorfulWaves(x, y);
         createFloatingText(x, y, combo);
-        shakeScreen(6);
+        shakeScreen(ANIMATION_CONSTANTS.SHAKE_INTENSITY_COMBO_8_10);
         pulseBackground();
 
     } else if (combo <= 15) {
@@ -758,17 +831,17 @@ function playCorrectEffect(button, combo) {
             repeat: 1,
             ease: 'back.out(1.7)'
         });
-        createParticles(x, y, 90, 'star');
-        createSpiralParticles(x, y, 30);
-        createHeartParticles(x, y, 20);
-        createStarBurst(x, y, 5);
-        flashScreen(0.7);
+        createParticles(x, y, ANIMATION_CONSTANTS.PARTICLES_COMBO_11_15, 'star');
+        createSpiralParticles(x, y, ANIMATION_CONSTANTS.SPIRAL_PARTICLES_COMBO_11_15);
+        createHeartParticles(x, y, ANIMATION_CONSTANTS.HEART_PARTICLES_COMBO_11_15);
+        createStarBurst(x, y, ANIMATION_CONSTANTS.STAR_BURST_POINTS_COMBO_11_15);
+        flashScreen(ANIMATION_CONSTANTS.FLASH_INTENSITY_COMBO_11_15);
         createRadialGlow(x, y);
-        createRainbowRing(x, y, 4);
+        createRainbowRing(x, y, ANIMATION_CONSTANTS.RAINBOW_RINGS_COMBO_11_15);
         createColorfulWaves(x, y);
         createLightPillar(x, y);
         createFloatingText(x, y, combo);
-        shakeScreen(10);
+        shakeScreen(ANIMATION_CONSTANTS.SHAKE_INTENSITY_COMBO_11_15);
         pulseBackground();
         createShootingStars();
 
@@ -782,19 +855,19 @@ function playCorrectEffect(button, combo) {
             repeat: 1,
             ease: 'back.out(1.7)'
         });
-        createParticles(x, y, 110, 'star');
-        createSpiralParticles(x, y, 35);
-        createHeartParticles(x, y, 25);
-        createExplosionParticles(x, y, 25);
-        createStarBurst(x, y, 7);
-        flashScreen(0.85);
+        createParticles(x, y, ANIMATION_CONSTANTS.PARTICLES_COMBO_16_20, 'star');
+        createSpiralParticles(x, y, ANIMATION_CONSTANTS.SPIRAL_PARTICLES_COMBO_16_20);
+        createHeartParticles(x, y, ANIMATION_CONSTANTS.HEART_PARTICLES_COMBO_16_20);
+        createExplosionParticles(x, y, ANIMATION_CONSTANTS.EXPLOSION_PARTICLES_COMBO_16_20);
+        createStarBurst(x, y, ANIMATION_CONSTANTS.STAR_BURST_POINTS_COMBO_16_20);
+        flashScreen(ANIMATION_CONSTANTS.FLASH_INTENSITY_COMBO_16_20);
         createRadialGlow(x, y);
-        createRainbowRing(x, y, 5);
+        createRainbowRing(x, y, ANIMATION_CONSTANTS.RAINBOW_RINGS_COMBO_16_20);
         createColorfulWaves(x, y);
         createLightPillar(x, y);
         createLaserBeams(x, y);
         createFloatingText(x, y, combo);
-        shakeScreen(14);
+        shakeScreen(ANIMATION_CONSTANTS.SHAKE_INTENSITY_COMBO_16_20);
         pulseBackground();
         zoomAndRotateScreen();
         createShootingStars();
@@ -802,7 +875,7 @@ function playCorrectEffect(button, combo) {
         createAurora();
 
     } else {
-        // コンボ21+: 究極の派手さ - 全エフェクト同時発動！(Phase 3: パフォーマンス最適化版)
+        // コンボ21+: 究極の派手さ - 全エフェクト同時発動！（パフォーマンス最適化版）
         gsap.to(button, {
             scale: 2.0,
             rotation: 1800,
@@ -811,17 +884,17 @@ function playCorrectEffect(button, combo) {
             repeat: 1,
             ease: 'back.out(1.7)'
         });
-        // パーティクル大量発生（Phase 3: 数を最適化 240→145）
-        createParticles(x, y, 80, 'star');
-        createSpiralParticles(x, y, 25);
-        createHeartParticles(x, y, 20);
-        createExplosionParticles(x, y, 20);
-        createStarBurst(x, y, 8);
+        // パーティクル大量発生（最適化版）
+        createParticles(x, y, ANIMATION_CONSTANTS.PARTICLES_COMBO_21_PLUS, 'star');
+        createSpiralParticles(x, y, ANIMATION_CONSTANTS.SPIRAL_PARTICLES_COMBO_21_PLUS);
+        createHeartParticles(x, y, ANIMATION_CONSTANTS.HEART_PARTICLES_COMBO_21_PLUS);
+        createExplosionParticles(x, y, ANIMATION_CONSTANTS.EXPLOSION_PARTICLES_COMBO_21_PLUS);
+        createStarBurst(x, y, ANIMATION_CONSTANTS.STAR_BURST_POINTS_COMBO_21_PLUS);
 
         // フラッシュ・グロー系
-        flashScreen(0.85); // Phase 3: 強度を微調整 (0.9 → 0.85)
+        flashScreen(ANIMATION_CONSTANTS.FLASH_INTENSITY_COMBO_21_PLUS);
         createRadialGlow(x, y);
-        createRainbowRing(x, y, 5); // Phase 3: リング数削減 (6 → 5)
+        createRainbowRing(x, y, ANIMATION_CONSTANTS.RAINBOW_RINGS_COMBO_21_PLUS);
         createColorfulWaves(x, y);
 
         // 光系エフェクト
@@ -831,7 +904,7 @@ function playCorrectEffect(button, combo) {
 
         // テキスト・画面効果
         createFloatingText(x, y, combo);
-        shakeScreen(15); // Phase 3: シェイク強度を微調整 (18 → 15)
+        shakeScreen(ANIMATION_CONSTANTS.SHAKE_INTENSITY_COMBO_21_PLUS);
         pulseBackground();
         zoomAndRotateScreen();
 
@@ -1093,14 +1166,14 @@ function createExplosionParticles(x, y, count) {
 }
 
 /**
- * 花火エフェクト（Phase 2新規、Phase 3最適化）
+ * 花火エフェクト（パフォーマンス最適化版）
  */
 function createFireworks() {
     for (let i = 0; i < 3; i++) {
         setTimeout(() => {
             const x = gsap.utils.random(window.innerWidth * 0.2, window.innerWidth * 0.8);
             const y = gsap.utils.random(window.innerHeight * 0.2, window.innerHeight * 0.6);
-            createExplosionParticles(x, y, 20); // Phase 3: パーティクル数削減 (30 → 20)
+            createExplosionParticles(x, y, ANIMATION_CONSTANTS.FIREWORK_PARTICLE_COUNT);
         }, i * 300);
     }
 }
@@ -1554,7 +1627,7 @@ function createConfetti() {
     const colors = ['#ffd93d', '#ff6b6b', '#6bcf7f', '#4facfe', '#f093fb', '#ffffff'];
     const container = document.getElementById('particleContainer');
 
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < ANIMATION_CONSTANTS.CONFETTI_COUNT; i++) {
         const confetti = document.createElement('div');
         confetti.style.position = 'fixed';
         confetti.style.width = '10px';
