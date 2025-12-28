@@ -477,6 +477,7 @@ function animateButtonsByLevel(level) {
             const targetLevel = 9;
             const complexMove = () => {
                 if (currentAnimationLevel !== targetLevel) return;
+                if (isTimeStopActive) return; // 🔧 時間停止中は新しいアニメーションを開始しない
                 gsap.to(button, {
                     x: gsap.utils.random(-80, 80),
                     y: gsap.utils.random(-80, 80),
@@ -495,6 +496,7 @@ function animateButtonsByLevel(level) {
             const targetLevel = 10;
             const wildMove = () => {
                 if (currentAnimationLevel !== targetLevel) return;
+                if (isTimeStopActive) return; // 🔧 時間停止中は新しいアニメーションを開始しない
                 gsap.to(button, {
                     x: gsap.utils.random(-90, 90),
                     y: gsap.utils.random(-90, 90),
@@ -520,6 +522,7 @@ function animateButtonsByLevel(level) {
 
             const complexRandomMove = () => {
                 if (currentAnimationLevel !== targetLevel) return;
+                if (isTimeStopActive) return; // 🔧 時間停止中は新しいアニメーションを開始しない
 
                 const duration = gsap.utils.random(0.4, 0.7);
                 const distance = gsap.utils.random(80, 100) * distanceMultiplier; // 📱 スマホ版では距離を70%に
@@ -551,6 +554,7 @@ function animateButtonsByLevel(level) {
 
             const hyperComplexMove = () => {
                 if (currentAnimationLevel !== targetLevel) return;
+                if (isTimeStopActive) return; // 🔧 時間停止中は新しいアニメーションを開始しない
 
                 const moveTypes = [
                     // 爆速ジグザグ（超大きな移動）
