@@ -6,6 +6,80 @@
 // 本番環境では false、開発時は true に変更してください
 const DEBUG_MODE = false;
 
+// ========================================
+// ゲーム定数（マジックナンバーの定義）
+// ========================================
+
+// レベル・経験値システム
+const GAME_CONSTANTS = {
+    // レベル設定
+    MAX_LEVEL: 20,
+    LEVEL_THRESHOLD_EASY: 10,        // Lv1-10
+    LEVEL_THRESHOLD_HARD: 20,        // Lv11-20
+
+    // 経験値計算
+    INITIAL_EXP_REQUIRED: 6,         // 初期レベルアップに必要な経験値
+    EXP_LEVEL_MULTIPLIER: 0.8,       // レベルごとの経験値増加率
+
+    // コンボ別経験値ボーナス
+    EXP_GAIN_COMBO_1: 1,
+    EXP_GAIN_COMBO_2_3: 2,
+    EXP_GAIN_COMBO_4_5: 3,
+    EXP_GAIN_COMBO_6_8: 4,
+    EXP_GAIN_COMBO_9_12: 5,
+    EXP_GAIN_COMBO_13_16: 6,
+    EXP_GAIN_COMBO_17_20: 7,
+    EXP_GAIN_COMBO_21_PLUS: 8,
+
+    // 問題生成
+    NUMBER_RANGE_EASY: 10,           // Lv1-10の数値範囲
+    NUMBER_RANGE_HARD: 20,           // Lv11-20の数値範囲
+    ANSWER_BUTTON_COUNT: 4,          // 回答ボタンの総数
+    DUMMY_ANSWER_COUNT: 3,           // ダミー回答の数
+    DUMMY_OFFSET_MIN: -5,            // ダミー回答のオフセット最小値
+    DUMMY_OFFSET_MAX: 5,             // ダミー回答のオフセット最大値
+    DUMMY_OFFSET_RANGE: 10,          // ダミー回答のオフセット範囲
+
+    // タイミング設定（ミリ秒）
+    DELAY_NEXT_QUESTION: 1200,       // 正解後、次の問題までの遅延
+    DELAY_WRONG_ANSWER: 600,         // 不正解後の遅延
+    DELAY_BUTTON_ENTRY: 800,         // ボタン出現アニメーション開始までの遅延
+    DELAY_LEVELUP_RESET: 800,        // レベルアップ後の経験値リセット遅延
+    DELAY_LEVELUP_ANIMATION: 2000,   // レベルアップエフェクト後のボタン更新遅延
+
+    // タイマーシステム
+    TIMER_DURATION_EASY: 10000,      // Lv1-10の制限時間（10秒）
+    TIMER_DURATION_HARD: 8000,       // Lv11-20の制限時間（8秒）
+
+    // 必殺技ゲージ
+    GAUGE_MAX: 100,                  // 最大ゲージ量
+    GAUGE_CHARGE_BASE: 5,            // 基本チャージ量
+    GAUGE_CHARGE_COMBO_MULTIPLIER: 2,// コンボボーナス倍率
+    GAUGE_CHARGE_MAX: 20,            // 1回のチャージ上限
+
+    // 必殺技コスト
+    SPECIAL_COST_TIME_STOP: 20,      // 時間停止のゲージコスト
+    SPECIAL_COST_SLOW_MOTION: 15,    // スローモーションのゲージコスト
+    SPECIAL_COST_HINT: 5,            // ヒントのゲージコスト
+
+    // 必殺技持続時間（ミリ秒）
+    SPECIAL_DURATION_TIME_STOP: 10000,   // 時間停止の持続時間（10秒）
+    SPECIAL_DURATION_SLOW_MOTION: 8000,  // スローモーションの持続時間（8秒）
+    SPECIAL_DURATION_HINT: 0,            // ヒントは即座に消費
+    SPECIAL_HINT_RESET_DELAY: 100,       // ヒントリセット遅延
+
+    // スローモーション設定
+    SLOW_MOTION_TIME_SCALE: 0.3,     // スローモーション時のタイムスケール（0.3倍速）
+
+    // サウンド設定
+    COMBO_SOUND_THRESHOLD_1: 5,      // コンボ音レベル1の閾値
+    COMBO_SOUND_THRESHOLD_2: 10,     // コンボ音レベル2の閾値
+    COMBO_SOUND_THRESHOLD_3: 15,     // コンボ音レベル3の閾値
+
+    // ドラム機能
+    DRUM_CLICK_THRESHOLD: 10         // ドラムボタンを何回叩いたら知識表示するか
+};
+
 // ゲーム状態管理
 const gameState = {
     level: 1,           // 現在のレベル
@@ -26,9 +100,9 @@ const gameState = {
 
 // ゲーム設定
 const gameConfig = {
-    maxLevel: 20,       // 最大レベル
-    expPerCorrect: 1,   // 正解時の経験値
-    scorePerCorrect: 10 // 正解時のスコア
+    maxLevel: GAME_CONSTANTS.MAX_LEVEL,    // 最大レベル
+    expPerCorrect: 1,                       // 正解時の経験値（コンボで変動）
+    scorePerCorrect: 10                     // 正解時のスコア
 };
 
 // タイマー状態管理（必殺技の時間停止機能に対応）
@@ -44,19 +118,19 @@ const timerState = {
 
 // 必殺技状態管理
 const specialMoveState = {
-    gauge: 0,           // 必殺技ゲージ（0-100）
-    maxGauge: 100,      // 最大ゲージ
-    active: {           // 各必殺技の発動状態
+    gauge: 0,                                           // 必殺技ゲージ（0-100）
+    maxGauge: GAME_CONSTANTS.GAUGE_MAX,                // 最大ゲージ
+    active: {                                           // 各必殺技の発動状態
         timeStop: false,
         slowMotion: false,
         hint: false
     },
-    cooldown: {         // クールダウン時間（ミリ秒）
-        timeStop: 10000,    // 時間停止は10秒間
-        slowMotion: 8000,   // スローモーションは8秒間
-        hint: 0             // ヒントは即座に消費
+    cooldown: {                                         // クールダウン時間（ミリ秒）
+        timeStop: GAME_CONSTANTS.SPECIAL_DURATION_TIME_STOP,
+        slowMotion: GAME_CONSTANTS.SPECIAL_DURATION_SLOW_MOTION,
+        hint: GAME_CONSTANTS.SPECIAL_DURATION_HINT
     },
-    cooldownTimers: {   // クールダウンタイマーID
+    cooldownTimers: {                                   // クールダウンタイマーID
         timeStop: null,
         slowMotion: null,
         hint: null
@@ -74,7 +148,7 @@ function initGame() {
     gameState.score = 0;
     gameState.combo = 0;
     gameState.exp = 0;
-    gameState.maxExp = 6; // Phase 3: 初期値を調整 (10 → 6)
+    gameState.maxExp = GAME_CONSTANTS.INITIAL_EXP_REQUIRED;
 
     // 必殺技エリアを表示（ゲーム再開時）
     const specialMovesContainer = document.querySelector('.special-moves-container');
@@ -155,9 +229,9 @@ function generateQuestion() {
     });
 
     // レベルに応じた数値範囲を決定
-    let maxNumber = 10;
-    if (gameState.level >= 11) {
-        maxNumber = 20;
+    let maxNumber = GAME_CONSTANTS.NUMBER_RANGE_EASY;
+    if (gameState.level >= GAME_CONSTANTS.LEVEL_THRESHOLD_EASY + 1) {
+        maxNumber = GAME_CONSTANTS.NUMBER_RANGE_HARD;
     }
 
     // ランダムな足し算問題を生成
@@ -190,7 +264,7 @@ function generateQuestion() {
 
         // 選択肢が揃ったので必殺技ボタンを有効化
         updateSpecialButtons();
-    }, 800);
+    }, GAME_CONSTANTS.DELAY_BUTTON_ENTRY);
 }
 
 /**
@@ -234,10 +308,10 @@ function generateAnswerOptions(correctAnswer) {
     const options = [correctAnswer];
     const used = new Set([correctAnswer]);
 
-    // ダミーの選択肢を3つ生成
-    while (options.length < 4) {
+    // ダミーの選択肢を生成
+    while (options.length < GAME_CONSTANTS.ANSWER_BUTTON_COUNT) {
         // 正解の近くの数値をダミーとして生成
-        const offset = Math.floor(Math.random() * 10) - 5; // -5 ~ +5
+        const offset = Math.floor(Math.random() * GAME_CONSTANTS.DUMMY_OFFSET_RANGE) + GAME_CONSTANTS.DUMMY_OFFSET_MIN;
         let dummy = correctAnswer + offset;
 
         // 0以下や重複は避ける
@@ -337,7 +411,7 @@ function handleCorrectAnswer(button) {
         levelUp();
     }
 
-    // 次の問題へ（Phase 3: テンポアップ 1500ms → 1200ms）
+    // 次の問題へ
     setTimeout(() => {
         gameState.isAnswering = false;
 
@@ -347,23 +421,23 @@ function handleCorrectAnswer(button) {
         } else {
             generateQuestion();
         }
-    }, 1200);
+    }, GAME_CONSTANTS.DELAY_NEXT_QUESTION);
 }
 
 /**
- * コンボ数に応じた経験値を計算（Phase 3新規）
+ * コンボ数に応じた経験値を計算
  * @param {number} combo - 現在のコンボ数
  * @returns {number} - 獲得経験値
  */
 function calculateExpGain(combo) {
-    if (combo === 1) return 1;
-    if (combo <= 3) return 2;
-    if (combo <= 5) return 3;
-    if (combo <= 8) return 4;
-    if (combo <= 12) return 5;
-    if (combo <= 16) return 6;
-    if (combo <= 20) return 7;
-    return 8; // コンボ21+
+    if (combo === 1) return GAME_CONSTANTS.EXP_GAIN_COMBO_1;
+    if (combo <= 3) return GAME_CONSTANTS.EXP_GAIN_COMBO_2_3;
+    if (combo <= 5) return GAME_CONSTANTS.EXP_GAIN_COMBO_4_5;
+    if (combo <= 8) return GAME_CONSTANTS.EXP_GAIN_COMBO_6_8;
+    if (combo <= 12) return GAME_CONSTANTS.EXP_GAIN_COMBO_9_12;
+    if (combo <= 16) return GAME_CONSTANTS.EXP_GAIN_COMBO_13_16;
+    if (combo <= 20) return GAME_CONSTANTS.EXP_GAIN_COMBO_17_20;
+    return GAME_CONSTANTS.EXP_GAIN_COMBO_21_PLUS;
 }
 
 /**
@@ -395,7 +469,7 @@ function handleWrongAnswer(button) {
     // 少し待ってから再び回答可能にする
     setTimeout(() => {
         gameState.isAnswering = false;
-    }, 600);
+    }, GAME_CONSTANTS.DELAY_WRONG_ANSWER);
 }
 
 /**
@@ -407,8 +481,8 @@ function levelUp() {
     // レベル増加
     gameState.level++;
 
-    // 次のレベルに必要な経験値を計算（Phase 3: 大幅削減）
-    gameState.maxExp = Math.floor(6 + gameState.level * 0.8);
+    // 次のレベルに必要な経験値を計算
+    gameState.maxExp = Math.floor(GAME_CONSTANTS.INITIAL_EXP_REQUIRED + gameState.level * GAME_CONSTANTS.EXP_LEVEL_MULTIPLIER);
     if (DEBUG_MODE) console.log('📊 次のレベルアップまで: ' + gameState.maxExp + '経験値');
 
     // 🎯 経験値バーを100%まで満たすアニメーション
@@ -444,13 +518,13 @@ function levelUp() {
         // 経験値バーを瞬時に0%にリセット（アニメーションなし）
         const bar = document.querySelector('.exp-bar-fill');
         gsap.set(bar, { width: '0%' });
-    }, 800); // レベルアップエフェクトの表示時間に合わせる
+    }, GAME_CONSTANTS.DELAY_LEVELUP_RESET);
 
     // 🔧 重要: レベルアップ直後にボタンアニメーションを更新
     if (DEBUG_MODE) console.log('🔄 ボタンアニメーションを新しいレベルに更新: Lv' + gameState.level);
     setTimeout(() => {
         animateButtonsByLevel(gameState.level);
-    }, 2000); // レベルアップエフェクト後に更新
+    }, GAME_CONSTANTS.DELAY_LEVELUP_ANIMATION);
 }
 
 /**
@@ -578,7 +652,7 @@ function initDebugPanel() {
 
             // レベルを即座に変更
             gameState.level = targetLevel;
-            gameState.maxExp = Math.floor(6 + gameState.level * 0.8); // Phase 3: 計算式を統一
+            gameState.maxExp = Math.floor(GAME_CONSTANTS.INITIAL_EXP_REQUIRED + gameState.level * GAME_CONSTANTS.EXP_LEVEL_MULTIPLIER);
 
             // UI更新
             updateUI();
@@ -628,8 +702,10 @@ function updateDebugPanel() {
 function startTimer() {
     if (!gameState.timeLimitEnabled) return;
 
-    // レベルに応じた制限時間を設定（Lv1-10: 10秒, Lv11-20: 8秒）
-    timerState.maxTime = gameState.level <= 10 ? 10000 : 8000;
+    // レベルに応じた制限時間を設定
+    timerState.maxTime = gameState.level <= GAME_CONSTANTS.LEVEL_THRESHOLD_EASY ?
+        GAME_CONSTANTS.TIMER_DURATION_EASY :
+        GAME_CONSTANTS.TIMER_DURATION_HARD;
     timerState.currentTime = timerState.maxTime;
     timerState.startTimestamp = performance.now();
     timerState.isRunning = true;
@@ -706,9 +782,9 @@ function updateTimer() {
     const now = performance.now();
     let elapsed = now - timerState.startTimestamp;
 
-    // スローモーション中は時間の進み方を0.3倍速に
+    // スローモーション中は時間の進み方を遅くする
     if (specialMoveState.active.slowMotion) {
-        elapsed *= 0.3;
+        elapsed *= GAME_CONSTANTS.SLOW_MOTION_TIME_SCALE;
     }
 
     timerState.currentTime = Math.max(0, timerState.pausedTime > 0 ? timerState.pausedTime - elapsed : timerState.maxTime - elapsed);
@@ -789,7 +865,10 @@ function onTimeUp() {
  */
 function chargeSpecialGauge(combo) {
     // コンボに応じてゲージ増加（コンボが高いほど多く増える）
-    const chargeAmount = Math.min(5 + combo * 2, 20); // 5-20の範囲
+    const chargeAmount = Math.min(
+        GAME_CONSTANTS.GAUGE_CHARGE_BASE + combo * GAME_CONSTANTS.GAUGE_CHARGE_COMBO_MULTIPLIER,
+        GAME_CONSTANTS.GAUGE_CHARGE_MAX
+    );
     specialMoveState.gauge = Math.min(specialMoveState.gauge + chargeAmount, specialMoveState.maxGauge);
 
     if (DEBUG_MODE) console.log('⚡ ゲージ +' + chargeAmount + ' (' + specialMoveState.gauge + '/' + specialMoveState.maxGauge + ')');
@@ -828,19 +907,19 @@ function updateSpecialButtons() {
     const slowMotionBtn = document.getElementById('slowMotionBtn');
     const hintBtn = document.getElementById('hintBtn');
 
-    // 時間停止: 20以上で使用可能
+    // 時間停止: 必要なゲージ量以上で使用可能
     if (timeStopBtn) {
-        timeStopBtn.disabled = specialMoveState.gauge < 20 || specialMoveState.active.timeStop;
+        timeStopBtn.disabled = specialMoveState.gauge < GAME_CONSTANTS.SPECIAL_COST_TIME_STOP || specialMoveState.active.timeStop;
     }
 
-    // スローモーション: 15以上で使用可能
+    // スローモーション: 必要なゲージ量以上で使用可能
     if (slowMotionBtn) {
-        slowMotionBtn.disabled = specialMoveState.gauge < 15 || specialMoveState.active.slowMotion;
+        slowMotionBtn.disabled = specialMoveState.gauge < GAME_CONSTANTS.SPECIAL_COST_SLOW_MOTION || specialMoveState.active.slowMotion;
     }
 
-    // ヒント: 5以上で使用可能
+    // ヒント: 必要なゲージ量以上で使用可能
     if (hintBtn) {
-        hintBtn.disabled = specialMoveState.gauge < 5 || specialMoveState.active.hint;
+        hintBtn.disabled = specialMoveState.gauge < GAME_CONSTANTS.SPECIAL_COST_HINT || specialMoveState.active.hint;
     }
 }
 
@@ -1065,14 +1144,14 @@ function restoreBGM() {
     // 他の必殺技が発動中でない場合のみBGMを再開
     if (!specialMoveState.active.timeStop && !specialMoveState.active.slowMotion) {
         // レベルに応じたBGMを再生
-        if (gameState.level <= 10) {
+        if (gameState.level <= GAME_CONSTANTS.LEVEL_THRESHOLD_EASY) {
             // Lv1-10の場合、opening BGMを再生
             const openingBGM = audioCache.bgm.opening;
             if (openingBGM && openingBGM.paused) {
                 playBGM('opening');
                 if (DEBUG_MODE) console.log('🎵 BGM再開 (opening)');
             }
-        } else if (gameState.level <= 20) {
+        } else if (gameState.level <= GAME_CONSTANTS.LEVEL_THRESHOLD_HARD) {
             // Lv11-20の場合、Lv11-20 BGMを再生
             const lv11_20BGMs = audioCache.bgm.lv11_20;
             const isAnyBGMPlaying = lv11_20BGMs.some(bgm => !bgm.paused);
@@ -1089,7 +1168,7 @@ function restoreBGM() {
  * ⏸️ 時間停止 発動
  */
 function activateTimeStop() {
-    activateSpecialMove('timeStop', 20, () => {
+    activateSpecialMove('timeStop', GAME_CONSTANTS.SPECIAL_COST_TIME_STOP, () => {
         // ド派手な発動エフェクト
         const gameMain = document.querySelector('.game-main');
 
@@ -1117,10 +1196,10 @@ function activateTimeStop() {
         // BGMを一時停止（再生位置を保持）
         pauseCurrentBGM();
 
-        // 10秒後に解除
+        // 持続時間後に解除
         specialMoveState.cooldownTimers.timeStop = setTimeout(() => {
             resetSpecialMove('timeStop');
-        }, 10000);
+        }, GAME_CONSTANTS.SPECIAL_DURATION_TIME_STOP);
     });
 }
 
@@ -1128,7 +1207,7 @@ function activateTimeStop() {
  * 🐌 スローモーション 発動
  */
 function activateSlowMotion() {
-    activateSpecialMove('slowMotion', 15, () => {
+    activateSpecialMove('slowMotion', GAME_CONSTANTS.SPECIAL_COST_SLOW_MOTION, () => {
         // ド派手な発動エフェクト
         const gameMain = document.querySelector('.game-main');
 
@@ -1154,12 +1233,12 @@ function activateSlowMotion() {
         playSlowMotionBGM();
 
         // GSAPのグローバルタイムスケールを遅くする
-        gsap.globalTimeline.timeScale(0.3);
+        gsap.globalTimeline.timeScale(GAME_CONSTANTS.SLOW_MOTION_TIME_SCALE);
 
-        // 8秒後に解除
+        // 持続時間後に解除
         specialMoveState.cooldownTimers.slowMotion = setTimeout(() => {
             resetSpecialMove('slowMotion');
-        }, 8000);
+        }, GAME_CONSTANTS.SPECIAL_DURATION_SLOW_MOTION);
     });
 }
 
@@ -1167,7 +1246,7 @@ function activateSlowMotion() {
  * 💡 ヒント 発動
  */
 function activateHint() {
-    activateSpecialMove('hint', 5, () => {
+    activateSpecialMove('hint', GAME_CONSTANTS.SPECIAL_COST_HINT, () => {
         // ド派手な発動エフェクト
         const gameMain = document.querySelector('.game-main');
 
@@ -1239,7 +1318,7 @@ function activateHint() {
         setTimeout(() => {
             resetSpecialMove('hint');
             if (DEBUG_MODE) console.log('💡 ヒントリセット完了');
-        }, 100);  // エフェクト開始直後にリセット
+        }, GAME_CONSTANTS.SPECIAL_HINT_RESET_DELAY);
     });
 }
 
@@ -1404,8 +1483,8 @@ function initDrumButtons() {
             // ドラムサウンドを再生（ボタンごとに異なるグループ）
             playDrumSound(buttonNumber);
 
-            // 10回以上叩いたら公式を表示
-            if (gameState.drumClickCount >= 10) {
+            // 規定回数以上叩いたら知識を表示
+            if (gameState.drumClickCount >= GAME_CONSTANTS.DRUM_CLICK_THRESHOLD) {
                 displayFormula();
             }
 

@@ -2,6 +2,22 @@
 // サウンド管理システム
 // ========================================
 
+// サウンド定数
+const SOUND_CONSTANTS = {
+    // 正解音の切り替え閾値
+    CORRECT_SOUND_THRESHOLD_1: 5,    // コンボ1-5
+    CORRECT_SOUND_THRESHOLD_2: 10,   // コンボ6-10
+    // コンボ11+は correct-003
+
+    // コンボ達成音の閾値
+    COMBO_SOUND_THRESHOLD_1: 5,      // 5コンボ
+    COMBO_SOUND_THRESHOLD_2: 10,     // 10コンボ
+    COMBO_SOUND_THRESHOLD_3: 15,     // 15コンボ
+
+    // ボタンサウンド数
+    BUTTON_SOUND_COUNT: 8            // button-001.mp3 ~ button-008.mp3
+};
+
 // サウンド設定
 const soundConfig = {
     enabled: false,          // サウンドON/OFF（初期値: OFF）
@@ -57,8 +73,8 @@ const soundPaths = {
     }
 };
 
-// button-*.mp3 ファイルを動的に登録（8個）
-for (let i = 1; i <= 8; i++) {
+// button-*.mp3 ファイルを動的に登録
+for (let i = 1; i <= SOUND_CONSTANTS.BUTTON_SOUND_COUNT; i++) {
     const filename = `sounds/effect/button-${String(i).padStart(3, '0')}.mp3`;
     soundPaths.effect.button.push(filename);
 }
@@ -423,9 +439,9 @@ function playCorrectSound(combo) {
     const correctSounds = audioCache.effect.correct;
     let soundIndex = 0;
 
-    if (combo <= 5) {
+    if (combo <= SOUND_CONSTANTS.CORRECT_SOUND_THRESHOLD_1) {
         soundIndex = 0; // correct-001
-    } else if (combo <= 10) {
+    } else if (combo <= SOUND_CONSTANTS.CORRECT_SOUND_THRESHOLD_2) {
         soundIndex = 1; // correct-002
     } else {
         soundIndex = 2; // correct-003
@@ -444,11 +460,11 @@ function playComboSound(combo) {
     const comboSounds = audioCache.effect.combo;
     let soundIndex = 0;
 
-    if (combo === 5) {
+    if (combo === SOUND_CONSTANTS.COMBO_SOUND_THRESHOLD_1) {
         soundIndex = 0; // combo-001
-    } else if (combo === 10) {
+    } else if (combo === SOUND_CONSTANTS.COMBO_SOUND_THRESHOLD_2) {
         soundIndex = 1; // combo-002
-    } else if (combo === 15) {
+    } else if (combo === SOUND_CONSTANTS.COMBO_SOUND_THRESHOLD_3) {
         soundIndex = 2; // combo-003
     } else {
         return; // コンボ音なし
