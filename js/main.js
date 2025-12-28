@@ -149,6 +149,11 @@ function generateQuestion() {
     // 🔧 ボタンアニメーションを停止し、位置をリセット
     stopAllButtonAnimations();
 
+    // 🔧 選択肢が揃うまで必殺技ボタンを無効化
+    document.querySelectorAll('.special-btn').forEach(btn => {
+        btn.disabled = true;
+    });
+
     // レベルに応じた数値範囲を決定
     let maxNumber = 10;
     if (gameState.level >= 11) {
@@ -182,6 +187,9 @@ function generateQuestion() {
 
         // タイマー開始（時間制限モード有効時）
         startTimer();
+
+        // 選択肢が揃ったので必殺技ボタンを有効化
+        updateSpecialButtons();
     }, 800);
 }
 
@@ -995,22 +1003,29 @@ function resetSpecialMove(moveType) {
     if (DEBUG_MODE) console.log('  - 現在のactive状態:', specialMoveState.active[moveType]);
     if (DEBUG_MODE) console.log('  - 現在のゲージ:', specialMoveState.gauge);
 
-    // 1. 発動状態をfalseに
+    // 1. cooldownタイマーをクリア（重要：10秒タイマーなどを停止）
+    if (specialMoveState.cooldownTimers[moveType]) {
+        clearTimeout(specialMoveState.cooldownTimers[moveType]);
+        specialMoveState.cooldownTimers[moveType] = null;
+        if (DEBUG_MODE) console.log('  - cooldownタイマークリア完了');
+    }
+
+    // 2. 発動状態をfalseに
     specialMoveState.active[moveType] = false;
     if (DEBUG_MODE) console.log('  - active状態をfalseに設定');
 
-    // 2. ボタンのactiveクラスを削除
+    // 3. ボタンのactiveクラスを削除
     const button = document.querySelector(`[data-move="${moveType}"]`);
     if (button) {
         button.classList.remove('active');
         if (DEBUG_MODE) console.log('  - activeクラス削除完了');
     }
 
-    // 3. ボタンの有効/無効を更新
+    // 4. ボタンの有効/無効を更新
     updateSpecialButtons();
     if (DEBUG_MODE) console.log('  - updateSpecialButtons()実行完了');
 
-    // 4. 必殺技固有のリセット処理
+    // 5. 必殺技固有のリセット処理
     switch (moveType) {
         case 'timeStop':
             // タイマーとボタンアニメーションを再開
