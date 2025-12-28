@@ -149,6 +149,11 @@ function generateQuestion() {
     // 🔧 ボタンアニメーションを停止し、位置をリセット
     stopAllButtonAnimations();
 
+    // 🔧 選択肢が揃うまで必殺技ボタンを無効化
+    document.querySelectorAll('.special-btn').forEach(btn => {
+        btn.disabled = true;
+    });
+
     // レベルに応じた数値範囲を決定
     let maxNumber = 10;
     if (gameState.level >= 11) {
@@ -182,6 +187,9 @@ function generateQuestion() {
 
         // タイマー開始（時間制限モード有効時）
         startTimer();
+
+        // 選択肢が揃ったので必殺技ボタンを有効化
+        updateSpecialButtons();
     }, 800);
 }
 
